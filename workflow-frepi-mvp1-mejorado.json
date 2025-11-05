@@ -1,0 +1,2347 @@
+{
+  "name": "Frepi MVP1 - Main | SA - Enhanced",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1344,
+        768
+      ],
+      "id": "3f9d7434-b245-4ddc-bae0-798483a201a4",
+      "name": "WhatsApp Trigger",
+      "webhookId": "4399b6d8-3058-4de1-9df4-ffdb588f5a08",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "nL8j9VXr95OvYqlC",
+          "name": "Frepi bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtener el input\nconst input = $input.first().json;\n\n// FILTRAR: Solo procesar si es un mensaje entrante (no notificaciones de estado)\nif (!input.messages || input.messages.length === 0) {\n  console.log('⏭️ [Extraer Datos] Ignorando notificación de estado:', input.statuses?.[0]?.status);\n  return [];\n}\n\n// Extraer datos del mensaje\nconst phoneNumber = input.messages[0].from;\nconst messageText = input.messages[0].text.body;\nconst userName = input.contacts[0].profile.name;\nconst messageId = input.messages[0].id;\nconst timestamp = input.messages[0].timestamp;\n\nconsole.log('📱 [Extraer Datos] Mensaje recibido de:', phoneNumber);\nconsole.log('💬 [Extraer Datos] Contenido:', messageText);\n\n// Retornar datos limpios\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    message: messageText,\n    user_name: userName,\n    message_id: messageId,\n    timestamp: timestamp,\n    raw_data: input\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        768
+      ],
+      "id": "8191e7f8-7853-46c9-b83e-1033eb0b1986",
+      "name": "Extraer Datos WhatsApp"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "restaurant_people",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "whatsapp_number",
+              "condition": "eq",
+              "keyValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        768
+      ],
+      "id": "6f86f3b0-310e-4bae-a71b-a93f4c4a1291",
+      "name": "Buscar Usuario",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "70bdf2a5-042c-4132-abb9-e685ae094890",
+              "leftValue": "={{ Object.keys($json).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -672,
+        768
+      ],
+      "id": "fc939aeb-a487-4ba7-9d83-712f91a45c35",
+      "name": "¿Usuario Existe?"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "Você é Frepi, assistente de compras por WhatsApp.\n\n🎯 MISSÃO: Completar o cadastro do restaurante\n\nDADOS A COLETAR (nesta ordem):\n1. Nome do restaurante\n2. Nome da pessoa de contato  \n3. Cidade\n4. Tipo de negócio (Restaurante, Padaria, Cafeteria, Bar, etc.)\n\nREGRAS:\n- UMA pergunta por vez\n- Breve e natural (máximo 2 linhas)\n- Se já cumprimentou antes = NÃO cumprimente de novo\n- Se o usuário der vários dados de uma vez = aceite todos\n- Seja amigável e use tom conversacional de WhatsApp\n\nFORMATO FINAL (quando tiver TODOS os 4 dados):\nCADASTRO_COMPLETO\nNome Restaurante: [nome]\nNome Contato: [nome]\nCidade: [cidade]\nTipo: [tipo]\n\nMuito obrigado! Seu cadastro está completo. 😊\nSempre que precisar, é só chamar!\n\nTOM: Natural, casual, como WhatsApp brasileiro."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        96
+      ],
+      "id": "cb8d33a8-224b-4fe3-b705-3dbf5de9e733",
+      "name": "Onboarding Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "frequencyPenalty": 1.5,
+          "presencePenalty": 0.6,
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        464,
+        320
+      ],
+      "id": "ffe24179-c625-4536-8f88-1af04e11274b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        592,
+        320
+      ],
+      "id": "5d97fdc9-db5b-487e-8401-86a8a9ada194",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "={{ $('WhatsApp Trigger').first().json.metadata.phone_number_id }}",
+        "recipientPhoneNumber": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}",
+        "textBody": "={{ $json.output || $json.message || $json.body || 'Oi! Vamos tentar de novo? 😊' }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        2976,
+        624
+      ],
+      "id": "db978f0c-2481-46a2-b43b-aba1b2ff8dfc",
+      "name": "Enviar Respuesta",
+      "webhookId": "5296878a-be4f-4a3c-a2d6-a05332a8bf53",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "Jb7XPGihYb3LXtzN",
+          "name": "Frepi Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "line_sessions",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "channel_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.phone_number }}"
+            },
+            {
+              "keyName": "session_type",
+              "condition": "eq",
+              "keyValue": "discovery"
+            },
+            {
+              "keyName": "session_goal_achieved",
+              "condition": "is",
+              "keyValue": "null"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        96
+      ],
+      "id": "a445384b-9fbf-4e6d-8589-385f8ed7e11c",
+      "name": "Buscar Sesión Activa",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c05e24e1-e967-4d40-906d-2fc503b9b212",
+              "leftValue": "={{ Object.keys($json).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -224,
+        96
+      ],
+      "id": "53b82bb3-f73d-4eaf-9987-75e4902d59d5",
+      "name": "¿Existe Sesión Onboarding?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $input.first().json;\nconst userMessage = $('Extraer Datos WhatsApp').first().json.message;\n\nconst preferencesData = session.preferences_captured || {};\nconst collectedData = preferencesData.collected_data || {};\n\nconst context = {\n  session_id: session.session_id,\n  phone_number: session.channel_id,\n  message: userMessage,\n  session_context: `\nCONTEXTO DE LA SESIÓN ANTERIOR:\n- Estado del onboarding: ${preferencesData.onboarding_status || 'iniciado'}\n- Datos ya recopilados:\n  * Nombre del restaurante: ${collectedData.restaurant_name || 'pendiente'}\n  * Nombre del contacto: ${collectedData.contact_name || 'pendiente'}\n  * Ciudad: ${collectedData.city || 'pendiente'}\n  * Tipo de negocio: ${collectedData.business_type || 'pendiente'}\n\nEl usuario está continuando su registro. Continúa desde donde quedaste pidiendo los datos que faltan.\n  `.trim(),\n  collected_data: collectedData\n};\n\nreturn [{ json: context }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "d1c21c69-667f-4c9b-be86-27a0f1a744b0",
+      "name": "Preparar Contexto de Sesión"
+    },
+    {
+      "parameters": {
+        "tableId": "line_sessions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}_{{ $now.toFormat('yyyyMMdd_HHmmss') }}"
+            },
+            {
+              "fieldId": "channel_id",
+              "fieldValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}"
+            },
+            {
+              "fieldId": "channel_type",
+              "fieldValue": "whatsapp"
+            },
+            {
+              "fieldId": "session_type",
+              "fieldValue": "discovery"
+            },
+            {
+              "fieldId": "session_start",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "primary_intent",
+              "fieldValue": "registro_nuevo"
+            },
+            {
+              "fieldId": "preferences_captured",
+              "fieldValue": "={\n  \"onboarding_status\": \"in_progress\",\n  \"collected_data\": {\n    \"restaurant_name\": null,\n    \"contact_name\": null,\n    \"city\": null,\n    \"business_type\": null\n  }\n}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        0,
+        208
+      ],
+      "id": "a2cadb79-3be4-40de-9f38-496cf3367e7b",
+      "name": "Crear Nueva Sesión",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconst isComplete = agentOutput.includes('CADASTRO_COMPLETO');\n\nfunction mapBusinessType(tipo) {\n  const mapping = {\n    'restaurante': 'restaurant',\n    'padaria': 'cafe',\n    'cafeteria': 'cafe',\n    'lanchonete': 'cafe',\n    'bistro': 'bistro',\n    'brasserie': 'brasserie',\n    'hotel': 'hotel',\n    'catering': 'catering',\n    'buffet': 'catering'\n  };\n  \n  return mapping[tipo.toLowerCase()] || 'restaurant';\n}\n\nlet parsedData = {\n  restaurant_name: null,\n  contact_name: null,\n  city: null,\n  business_type: null\n};\n\nif (isComplete) {\n  const lines = agentOutput.split('\\n');\n  \n  for (const line of lines) {\n    if (line.includes('Nome Restaurante:')) {\n      parsedData.restaurant_name = line.split(':')[1].trim();\n    }\n    if (line.includes('Nome Contato:')) {\n      parsedData.contact_name = line.split(':')[1].trim();\n    }\n    if (line.includes('Cidade:')) {\n      parsedData.city = line.split(':')[1].trim();\n    }\n    if (line.includes('Tipo:')) {\n      const rawType = line.split(':')[1].trim();\n      parsedData.business_type = mapBusinessType(rawType);\n    }\n  }\n}\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    message_to_send: agentOutput,\n    onboarding_complete: isComplete,\n    collected_data: parsedData\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        96
+      ],
+      "id": "43e59840-d31c-4d4f-8c20-44ea09bd0877",
+      "name": "Detectar Onboarding Completo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c76c3d3f-54cf-406a-9492-9ae9827cd4fb",
+              "leftValue": "={{ $json.onboarding_complete }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1088,
+        96
+      ],
+      "id": "6828d0dd-5bea-466d-ab6a-e874ff7e4f9c",
+      "name": "¿Onboarding Completo?"
+    },
+    {
+      "parameters": {
+        "tableId": "restaurants",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "restaurant_name",
+              "fieldValue": "={{ $json.collected_data.restaurant_name }}"
+            },
+            {
+              "fieldId": "restaurant_type",
+              "fieldValue": "={{ $json.collected_data.business_type }}"
+            },
+            {
+              "fieldId": "street_address",
+              "fieldValue": "Pendiente"
+            },
+            {
+              "fieldId": "city",
+              "fieldValue": "={{ $json.collected_data.city }}"
+            },
+            {
+              "fieldId": "is_active",
+              "fieldValue": "true"
+            },
+            {
+              "fieldId": "customer_since",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        0
+      ],
+      "id": "c2f07650-05ae-4200-9ffc-9561a45b8001",
+      "name": "Guardar Restaurante",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "restaurants",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "restaurant_name",
+              "condition": "eq",
+              "keyValue": "={{ $('Detectar Onboarding Completo').first().json.collected_data.restaurant_name }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        0
+      ],
+      "id": "c8f690d2-958d-4908-b7f6-44bb2c47ad85",
+      "name": "Buscar Restaurante Recién Creado",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const restaurants = $input.all().map(item => item.json);\n\nrestaurants.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));\n\nconst latestRestaurant = restaurants[0];\n\nconst onboardingData = $('Detectar Onboarding Completo').first().json;\n\nreturn [{\n  json: {\n    ...onboardingData,\n    restaurant_id: latestRestaurant.id,\n    restaurant_data: latestRestaurant\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        0
+      ],
+      "id": "c4f35a49-5c1a-4518-9259-689d66bc08a6",
+      "name": "Extraer ID Restaurante"
+    },
+    {
+      "parameters": {
+        "tableId": "restaurant_people",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "restaurant_id",
+              "fieldValue": "={{ $json.restaurant_id }}"
+            },
+            {
+              "fieldId": "first_name",
+              "fieldValue": "={{ $json.collected_data.contact_name.split(' ')[0] }}"
+            },
+            {
+              "fieldId": "last_name",
+              "fieldValue": "={{ $json.collected_data.contact_name.split(' ').slice(1).join(' ') || $json.collected_data.contact_name }}"
+            },
+            {
+              "fieldId": "whatsapp_number",
+              "fieldValue": "={{ $json.phone_number }}"
+            },
+            {
+              "fieldId": "is_primary_contact",
+              "fieldValue": "true"
+            },
+            {
+              "fieldId": "is_active",
+              "fieldValue": "true"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2112,
+        0
+      ],
+      "id": "4a4c639d-4588-479f-b756-3fae384ae7e6",
+      "name": "Guardar Contacto",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "line_sessions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "channel_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.phone_number }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_end",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "session_goal_achieved",
+              "fieldValue": "true"
+            },
+            {
+              "fieldId": "preferences_captured",
+              "fieldValue": "={\n  \"onboarding_status\": \"completed\",\n  \"completed_at\": \"{{ $now }}\",\n  \"collected_data\": {{ $json.collected_data }}\n}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2464,
+        0
+      ],
+      "id": "70ae39d6-b401-4767-9836-4f9801a8672d",
+      "name": "Marcar Sesión Completa",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "line_sessions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "channel_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Detectar Onboarding Completo').first().json.phone_number }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "message_count",
+              "fieldValue": "={{ $('Buscar Sesión Activa').first().json.message_count + 1 }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2464,
+        192
+      ],
+      "id": "028d83e1-1754-407a-baea-9b0f3665dfc7",
+      "name": "Actualizar Sesión Parcial",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const message = $('Detectar Onboarding Completo').first().json.message_to_send;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('✅ [Preparar Output Onboarding] Onboarding en progreso');\n\nreturn [{\n  json: {\n    output: message,\n    phone_number: phoneNumber\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        192
+      ],
+      "id": "743043b4-9757-4206-8820-0fa67f35bf31",
+      "name": "Preparar Output Onboarding"
+    },
+    {
+      "parameters": {
+        "jsCode": "const message = $('Detectar Onboarding Completo').first().json.message_to_send;\n\nreturn [{\n  json: {\n    output: message,\n    phone_number: $('Extraer Datos WhatsApp').first().json.phone_number\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        0
+      ],
+      "id": "1dcb6252-a795-436b-bc8c-ff7e41df77b4",
+      "name": "Preparar Mensaje Final"
+    },
+    {
+      "parameters": {
+        "tableId": "line_sessions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}_{{ $now.toFormat('yyyyMMdd_HHmmss') }}"
+            },
+            {
+              "fieldId": "channel_id",
+              "fieldValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}"
+            },
+            {
+              "fieldId": "restaurant_id",
+              "fieldValue": "={{ $('Detectar Opción del Menú').first().json.user_data.restaurant_id }}"
+            },
+            {
+              "fieldId": "person_id",
+              "fieldValue": "={{ $('Detectar Opción del Menú').first().json.user_data.id }}"
+            },
+            {
+              "fieldId": "channel_type",
+              "fieldValue": "whatsapp"
+            },
+            {
+              "fieldId": "session_type",
+              "fieldValue": "transactional"
+            },
+            {
+              "fieldId": "session_start",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "primary_intent",
+              "fieldValue": "fazer_pedido"
+            },
+            {
+              "fieldId": "products_discussed",
+              "fieldValue": "[]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1824,
+        736
+      ],
+      "id": "0ba47b99-554b-4efc-9521-a42fcfeeddd7",
+      "name": "Crear Sesión de Compra",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🔍 Vector Search Products - Enhanced\nconst userMessage = $input.first().json.message || $input.first().json.user_message;\nconst phoneNumber = $input.first().json.phone_number;\nconst sessionId = $input.first().json.session_id;\nconst restaurantId = $input.first().json.restaurant_id || $('Detectar Opción del Menú').first().json.user_data.restaurant_id;\n\nconsole.log('🔍 [Vector Search] Buscando productos para:', userMessage);\n\nlet queryEmbedding;\ntry {\n  const embeddingResponse = await $http.request({\n    method: 'POST',\n    url: 'https://api.openai.com/v1/embeddings',\n    headers: {\n      'Authorization': `Bearer ${$credentials.openAiApi.apiKey}`,\n      'Content-Type': 'application/json'\n    },\n    body: {\n      model: 'text-embedding-ada-002',\n      input: userMessage\n    }\n  });\n\n  if (embeddingResponse.statusCode !== 200) {\n    console.error('❌ [Vector Search] OpenAI Embedding error:', embeddingResponse);\n    return [{\n      json: {\n        user_message: userMessage,\n        phone_number: phoneNumber,\n        session_id: sessionId,\n        restaurant_id: restaurantId,\n        suggested_products: [],\n        products_context: '',\n        has_suggestions: false,\n        error: 'embedding_generation_failed',\n        ...($input.first().json)\n      }\n    }];\n  }\n\n  queryEmbedding = embeddingResponse.data[0].embedding;\n  console.log('✅ [Vector Search] Embedding generado exitosamente');\n  \n} catch (error) {\n  console.error('❌ [Vector Search] Error generando embedding:', error);\n  return [{\n    json: {\n      user_message: userMessage,\n      phone_number: phoneNumber,\n      session_id: sessionId,\n      restaurant_id: restaurantId,\n      suggested_products: [],\n      products_context: '',\n      has_suggestions: false,\n      error: 'embedding_error',\n      ...($input.first().json)\n    }\n  }];\n}\n\nlet matchingProducts = [];\ntry {\n  const { data, error } = await $supabase.rpc('match_products_v2', {\n    query_embedding: queryEmbedding,\n    match_threshold: 0.65,\n    match_count: 5\n  });\n\n  if (error) {\n    console.error('❌ [Vector Search] Supabase RPC error:', error.message);\n    matchingProducts = [];\n  } else {\n    matchingProducts = data || [];\n    console.log(`✅ [Vector Search] ${matchingProducts.length} productos encontrados`);\n  }\n  \n} catch (error) {\n  console.error('❌ [Vector Search] Error en búsqueda vectorial:', error);\n  matchingProducts = [];\n}\n\nlet productsContext = '';\n\nif (matchingProducts && matchingProducts.length > 0) {\n  productsContext = '🔍 PRODUTOS ENCONTRADOS NO CATÁLOGO:\\n\\n';\n  matchingProducts.forEach((p, idx) => {\n    productsContext += `${idx + 1}. ${p.product_name}`;\n    if (p.brand) productsContext += ` (${p.brand})`;\n    productsContext += '\\n';\n    productsContext += `   Relevância: ${(p.similarity * 100).toFixed(0)}%\\n`;\n    \n    if (p.alternative_names && Array.isArray(p.alternative_names) && p.alternative_names.length > 0) {\n      productsContext += `   Também chamado: ${p.alternative_names.join(', ')}\\n`;\n    }\n    productsContext += '\\n';\n  });\n  productsContext += '💡 Use estes produtos como referência.\\n';\n}\n\nreturn [{\n  json: {\n    user_message: userMessage,\n    phone_number: phoneNumber,\n    session_id: sessionId,\n    restaurant_id: restaurantId,\n    suggested_products: matchingProducts || [],\n    products_context: productsContext,\n    has_suggestions: matchingProducts && matchingProducts.length > 0,\n    embedding_used: true,\n    ...($input.first().json)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2112,
+        736
+      ],
+      "id": "70fa8234-53d5-4c89-af81-c6648d4233eb",
+      "name": "Vector Search Products",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
+        "options": {
+          "systemMessage": "={{ $('Vector Search Products').first().json.products_context }}\n\nIMPORTANTE: Os produtos sugeridos acima estão verificados no nosso catálogo.\n- Se o usuário mencionar algo similar, ofereça primeiro estes produtos\n- Use os nomes EXATOS do catálogo ao confirmar produtos\n- Se nenhum coincidir, pergunte para esclarecer\n\n---\n\nVocê é Frepi, assistente de compras por WhatsApp para restaurantes.\n\nCONTEXTO DA SESSÃO:\nSessão ID: {{ $('Vector Search Products').first().json.session_id }}\nUsuário: {{ $('Vector Search Products').first().json.phone_number }}\n\n🎯 SUA MISSÃO: Ajudar o restaurante a fazer um pedido de produtos\n\nINSTRUÇÕES:\n1. Para cada produto mencionado:\n   - Confirme o nome exato (usando os sugeridos do catálogo se possível)\n   - Pergunte a quantidade\n   - Confirme a unidade (kg, litro, unidade, caixa, etc.)\n\n2. Se há PRODUTOS SUGERIDOS do catálogo:\n   - Primeiro pergunte: \"Você quer algum destes produtos?\"\n   - Se sim: confirme quantidade e unidade\n   - Se não: pergunte o que precisa especificamente\n\n3. Quando tiver pelo menos 1 produto completo com quantidade:\n   - Pergunte: \"Quer adicionar mais produtos?\"\n   - Se não: resuma o pedido e confirme\n\n4. FORMATO FINAL quando pedido estiver completo:\nPEDIDO_COMPLETO\nItens:\n- [produto 1]: [quantidade] [unidad]\n- [producto 2]: [cantidad] [unidad]\nFornecedor preferido: [fornecedor ou 'não especificado']\n\nVou gerar o resumo do seu pedido!\n\nTOM: Natural, breve, amigável como WhatsApp. Máximo 2-3 linhas por resposta."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2400,
+        624
+      ],
+      "id": "ac67d56a-99ef-4dd9-82d4-66e30573fe36",
+      "name": "Agente de Compras"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2416,
+        848
+      ],
+      "id": "d5cfb41e-0fd3-41b5-888c-02097d6d7841",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2544,
+        848
+      ],
+      "id": "a4b42e90-a906-4eec-8396-665b95c90eee",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst message = input.output || input.text || JSON.stringify(input);\n\nreturn [{\n  json: {\n    output: message,\n    phone_number: $('Extraer Datos WhatsApp').first().json.phone_number\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        736
+      ],
+      "id": "6bfa3102-3d6f-406b-a239-70bfe08be144",
+      "name": "Extraer Respuesta Agente Compras"
+    },
+    {
+      "parameters": {
+        "jsCode": "const usuario = $input.first().json;\n\nconst tienePreferencias = usuario.category_preferences && \n                          Object.keys(usuario.category_preferences).length > 0;\n\nreturn [{\n  json: {\n    ...usuario,\n    setup_completo: tienePreferencias\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        1008
+      ],
+      "id": "da5847e1-f892-44e4-9927-438bdf8b277b",
+      "name": "Verificar Setup Completo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "823bbb54-7586-4c05-8f4d-229f65fc8dbd",
+              "leftValue": "={{ $json.setup_completo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "6002c55c-8905-49cf-800e-2c23379f3b72",
+              "leftValue": "={{ $json.is_menu_interaction }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        1008
+      ],
+      "id": "5125e378-7d70-4eed-b909-3da531c6331e",
+      "name": "¿Setup Completo?"
+    },
+    {
+      "parameters": {
+        "tableId": "line_sessions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}_setup_{{ $now.toFormat('yyyyMMdd_HHmmss') }}"
+            },
+            {
+              "fieldId": "channel_id",
+              "fieldValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}"
+            },
+            {
+              "fieldId": "restaurant_id",
+              "fieldValue": "={{ $('Verificar Setup Completo').first().json.restaurant_id }}"
+            },
+            {
+              "fieldId": "person_id",
+              "fieldValue": "={{ $('Verificar Setup Completo').first().json.id }}"
+            },
+            {
+              "fieldId": "channel_type",
+              "fieldValue": "whatsapp"
+            },
+            {
+              "fieldId": "session_type",
+              "fieldValue": "discovery"
+            },
+            {
+              "fieldId": "session_start",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "primary_intent",
+              "fieldValue": "configurar_preferencias"
+            },
+            {
+              "fieldId": "preferences_captured",
+              "fieldValue": "={   \"setup_status\": \"in_progress\",   \"preferences_collected\": {     \"quality_vs_price\": null,     \"preferred_brands\": [],     \"favorite_suppliers\": []   } }"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1824,
+        1024
+      ],
+      "id": "e77da733-1b0f-49c1-838d-dd953059c15c",
+      "name": "Crear Sesión de Setup",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
+        "options": {
+          "systemMessage": "Você é Frepi, assistente de compras.\n\n🎯 MISSÃO: Entender as preferências de compra do restaurante\n\nPERGUNTAS A FAZER (uma por vez):\n1. Quais produtos você compra com mais frequência?\n2. Tem algum fornecedor preferido?\n3. Com que frequência faz pedidos? (diário, semanal, quinzenal)\n4. Qual é o orçamento mensal aproximado para compras?\n\nREGRAS:\n- Uma pergunta por vez\n- Se o usuário já deu alguma informação, não pergunte de novo\n- Seja breve e direto (máximo 2 linhas)\n- Tom conversacional de WhatsApp\n\nFORMATO FINAL (quando tiver AS RESPOSTAS):\nSETUP_FINALIZADO\nProdutos Frequentes: [lista]\nFornecedores: [fornecedores]\nFrequência: [frequência]\nOrçamento Mensal: [valor]\n\nPerfeito! Agora conheço melhor suas necessidades. 👍\nQuando precisar fazer um pedido, é só me chamar!\n\nTOM: Amigável, profissional, brasileiro."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2048,
+        1024
+      ],
+      "id": "662f4879-bb10-4c49-86ed-dce5838b9793",
+      "name": "Agente de Setup"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2064,
+        1248
+      ],
+      "id": "1db955ff-4e52-4b18-9fbd-100def8621d9",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2192,
+        1248
+      ],
+      "id": "53af3513-df35-442f-a262-429e3fa4a71b",
+      "name": "Simple Memory2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output;\n\nconsole.log('📥 [Detectar Setup] Output recibido del agente:', agentOutput);\n\nconst setupCompleto = agentOutput.includes('CONFIGURACAO_COMPLETA');\n\nconsole.log('🔍 [Detectar Setup] Setup completo:', setupCompleto);\n\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\nconst userMessage = $('Extraer Datos WhatsApp').first().json.message;\n\nlet outputParaUsuario = agentOutput;\n\noutputParaUsuario = outputParaUsuario\n  .replace(/\\{[\\s\\S]*?\\}/g, '')\n  .replace(/CONFIGURACAO_COMPLETA/g, '')\n  .trim();\n\nif (!outputParaUsuario || outputParaUsuario.length < 20) {\n  outputParaUsuario = \"Perfeito! Configurei tudo.\\n\\nDe agora em diante sou seu agente de compras. Sempre que precisar é só chamar 😊\";\n}\n\nconsole.log('✅ [Detectar Setup] Output limpio para usuario:', outputParaUsuario);\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    setup_completo: setupCompleto,\n    output: outputParaUsuario,\n    output_completo: agentOutput,\n    user_message: userMessage\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        1024
+      ],
+      "id": "e0cc4fb9-ea23-44ed-bf51-90f9ad74c260",
+      "name": "Detectar Setup Completo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "02074caa-84ee-4fb0-af1e-7f328370e6ea",
+              "leftValue": "={{ $json.setup_completo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2752,
+        1024
+      ],
+      "id": "ac6194a0-4fc6-4a9c-ac90-a5a5d4d14483",
+      "name": "¿Setup Finalizado?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "db4c7da3-76e8-4c17-a98f-2990ccb569e4",
+              "leftValue": "={{ $('Verificar Setup Completo').first().json.is_menu_interaction }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        1776
+      ],
+      "id": "d88ea515-57c8-492a-9a59-8103072a6d0c",
+      "name": "¿Es Interacción de Menú?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "533d7733-d96e-46c2-a138-a73c30210856",
+              "leftValue": "={{ $json.detected_option }}",
+              "rightValue": "show_menu",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        2128
+      ],
+      "id": "fa75660f-b086-4c80-ad99-4a723767a9d4",
+      "name": "¿Mostrar Menú o Chat?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('📋 [Subir Precios] Iniciando flujo de subir precios');\n\nconst menuData = $('Detectar Opción del Menú').first().json;\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    user_data: menuData.user_data,\n    restaurant_id: menuData.user_data.restaurant_id,\n    person_id: menuData.user_data.id,\n    message: $('Extraer Datos WhatsApp').first().json.message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        336
+      ],
+      "id": "348b39e1-b7b0-4603-8c94-049e443d8507",
+      "name": "Preparar Datos Subir Precios"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    output: '⚙️ Configurações em breve!\\n\\nPor enquanto:\\n1️⃣ Enviar preços\\n2️⃣ Fazer pedido\\n\\nDigite o número',\n    phone_number: $('Detectar Opción del Menú').first().json.phone_number\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        1936
+      ],
+      "id": "2ab5d078-7d85-4754-b1f5-5fecf34903e7",
+      "name": "Mensaje Configurações"
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output;\nconst usuario = $('Buscar Usuario').first().json;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconst conversacionCompleta = agentOutput;\n\nconst preferencias = {\n  preferencias_gerais: {\n    prioridade: null,\n    fornecedores_preferidos: []\n  },\n  categorias: {}\n};\n\nreturn [{\n  json: {\n    usuario_id: usuario.id,\n    restaurant_id: usuario.restaurant_id,\n    phone_number: phoneNumber,\n    conversacion_completa: conversacionCompleta,\n    necesita_procesamiento_llm: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        1072
+      ],
+      "id": "700d28a8-538f-430a-954f-b57d51b38a45",
+      "name": "Extraer Preferencias del Setup"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analise esta conversa de configuração e extraia as preferências em JSON:\n\n{{ $json.conversacion_completa }}\n\nFormato esperado:\n{\n  \"preferencias_gerais\": {\n    \"prioridade\": \"preco|qualidade|equilibrio\",\n    \"fornecedores_preferidos\": [\"Nome1\", \"Nome2\"] ou []\n  },\n  \"categorias\": {\n    \"Nome da Categoria\": {\n      \"priority\": \"preco|qualidade|equilibrio|freshness\",\n      \"brands\": [\"marca1\", \"marca2\"] ou [\"tanto faz\"],\n      \"quality_level\": \"A+|A|B|tanto faz\",\n      \"typical_quantity\": \"texto livre\"\n    }\n  }\n}\n\nResponda APENAS com o JSON, nada mais.",
+        "options": {
+          "systemMessage": "Você é um extrator de dados. Sua única tarefa é analisar conversas e extrair preferências de compra em formato JSON.\n\nIMPORTANTE: Responda APENAS com o JSON, sem texto adicional antes ou depois."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        3200,
+        1072
+      ],
+      "id": "a7124dc0-eed0-40e8-9d01-714f274a72bf",
+      "name": "Extraer JSON de Preferencias"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3216,
+        1296
+      ],
+      "id": "7799e89b-f4b0-45e0-aa5b-fdc34ed49a84",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        3344,
+        1296
+      ],
+      "id": "13d8f635-f311-442d-9260-4bc4f018dfd7",
+      "name": "Simple Memory3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('✅ [Limpiar Output] Preferencias guardadas exitosamente');\n\nconst successMessage = \"Pronto! Suas preferências foram salvas com sucesso. ✅\";\n\nreturn [{\n  json: {\n    output: successMessage,\n    phone_number: phoneNumber,\n    setup_completed: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4000,
+        1216
+      ],
+      "id": "28a80395-d156-4a05-b493-14b5e26c3312",
+      "name": "Limpiar Output Después de Guardar"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
+        "options": {
+          "systemMessage": "Você é Frepi, assistente de compras por WhatsApp.\n\n🎯 MISSÃO: Ajudar o usuário a navegar pelas opções\n\nOPÇÕES DISPONÍVEIS:\n1. 📦 Fazer um pedido\n2. 💰 Subir preços (em breve)\n3. ⚙️ Configurar preferências\n4. ❓ Ajuda\n\nINSTRUÇÕES:\n- Se o usuário disser claramente o que quer (ex: \"quero fazer um pedido\"), execute a ação\n- Se não estiver claro, mostre o menu de opções\n- Seja breve e direto\n- Use emojis para clareza\n\nQUANDO O USUÁRIO ESCOLHER UMA OPÇÃO, responda:\nPara pedido: ACAO_PEDIDO\nPara configuração: ACAO_CONFIGURACAO  \nPara ajuda: Explique as funcionalidades brevemente\n\nTOM: Amigável, eficiente, brasileiro."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        880
+      ],
+      "id": "f2c82b4f-796d-4439-bb41-3f03bf62e2ab",
+      "name": "Agente de Menú Principal"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        1104
+      ],
+      "id": "ae2abdc1-de41-41d1-9706-498a6ef453bb",
+      "name": "OpenAI Chat Model4",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1168,
+        1104
+      ],
+      "id": "eb4e93c4-4880-4ec8-a652-58fc490c6436",
+      "name": "Simple Memory4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('🤖 [Detectar Acción] Output del agente:', agentOutput);\n\nlet accion = 'mostrar_respuesta';\n\nif (agentOutput.includes('ACAO:FAZER_PEDIDO')) {\n  accion = 'hacer_pedido';\n} else if (agentOutput.includes('ACAO:CONFIGURAR')) {\n  accion = 'configurar';\n} else if (agentOutput.includes('ACAO:ENVIAR_PRECOS')) {\n  accion = 'enviar_precos';\n}\n\nlet outputLimpio = agentOutput\n  .replace(/ACAO:FAZER_PEDIDO/g, '')\n  .replace(/ACAO:CONFIGURAR/g, '')\n  .replace(/ACAO:ENVIAR_PRECOS/g, '')\n  .trim();\n\nconsole.log('🎯 [Detectar Acción] Acción detectada:', accion);\n\nreturn [{\n  json: {\n    accion: accion,\n    output: outputLimpio,\n    phone_number: phoneNumber,\n    original_output: agentOutput\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        608
+      ],
+      "id": "2ab6f677-0def-4a59-a654-b1612f3cdff1",
+      "name": "Detectar Acción del Agente"
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "output": "=Output (0): {{ $json.accion === 'hacer_pedido' }}\nOutput (1): {{ $json.accion === 'configurar' }}\nOutput (2): {{ $json.accion === 'enviar_precos' }}\nOutput (3): {{ $json.accion === 'mostrar_respuesta' }}"
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1600,
+        576
+      ],
+      "id": "58a9e589-1536-4c42-a4ee-cb8d2f32086d",
+      "name": "Router de Acciones"
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $input.first().json;\nconst userMessage = $('Extraer Datos WhatsApp').first().json.message;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\nconst userName = $('Extraer Datos WhatsApp').first().json.user_name;\n\nreturn [{\n  json: {\n    session_id: session.session_id,\n    phone_number: phoneNumber,\n    user_name: userName,\n    message: userMessage,\n    session_context: \"Novo usuário iniciando cadastro.\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        208
+      ],
+      "id": "81773b2b-8569-4dfe-aef8-b3b09694d35b",
+      "name": "Preparar Input para Onboarding"
+    },
+    {
+      "parameters": {
+        "jsCode": "const preferenciasRaw = $input.first().json.output;\n\nlet preferencias;\ntry {\n  const jsonLimpio = preferenciasRaw\n    .replace(/```json\\n?/g, '')\n    .replace(/```\\n?/g, '')\n    .replace(/^[^{]*/g, '')\n    .replace(/[^}]*$/g, '')\n    .trim();\n  \n  preferencias = JSON.parse(jsonLimpio);\n  \n  console.log('✅ JSON parseado correctamente:', preferencias);\n} catch (error) {\n  console.error('❌ Error parseando JSON:', error);\n  console.error('Raw data:', preferenciasRaw);\n  throw new Error('No se pudo parsear las preferencias: ' + preferenciasRaw);\n}\n\nconst usuario = $('Buscar Usuario').first().json;\n\nconst prioridadMap = {\n  'preco': 0.2,\n  'equilibrio': 0.5,\n  'qualidade': 0.8\n};\n\nconst priceSensitivity = prioridadMap[preferencias.preferencias_gerais?.prioridade] || 0.5;\n\nreturn [{\n  json: {\n    restaurant_id: usuario.restaurant_id,\n    category_preferences: preferencias.categorias,\n    price_sensitivity: priceSensitivity,\n    preferred_suppliers: preferencias.preferencias_gerais?.fornecedores_preferidos || [],\n    brand_loyalties: preferencias.categorias\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3552,
+        1072
+      ],
+      "id": "dfbf1af5-1977-4a1a-8d36-b15cbaeb6c17",
+      "name": "Preparar Datos para Guardar"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "restaurants",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.restaurant_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "category_preferences",
+              "fieldValue": "={{ $json.category_preferences }}"
+            },
+            {
+              "fieldId": "price_sensitivity",
+              "fieldValue": "={{ $json.price_sensitivity }}"
+            },
+            {
+              "fieldId": "preferred_suppliers",
+              "fieldValue": "={{ $json.preferred_suppliers }}"
+            },
+            {
+              "fieldId": "brand_loyalties",
+              "fieldValue": "={{ $json.brand_loyalties }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3776,
+        1072
+      ],
+      "id": "abfdc805-d102-48f6-9028-978a86d665d2",
+      "name": "Actualizar Restaurante con Preferencias",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const message = $('Extraer Datos WhatsApp').first().json.message.toLowerCase().trim();\nconst user = $('Verificar Setup Completo').first().json;\n\nlet option = null;\n\nif (message.includes('1') || message.includes('preço') || message.includes('preco') || message.includes('lista de preço')) {\n  option = 'upload_prices';\n} else if (message.includes('2') || message.includes('pedido') || message.includes('compra') || message.includes('comprar')) {\n  option = 'make_order';\n} else if (message.includes('menu') || message.includes('opções') || message.includes('opcoes') || message.includes('oi') || message.includes('olá')) {\n  option = 'show_menu';\n} else if (message.includes('3') || message.includes('config') || message.includes('configuração')) {\n  option = 'settings';\n} else {\n  option = 'chat';\n}\n\nreturn [{\n  json: {\n    detected_option: option,\n    original_message: message,\n    user_data: user,\n    phone_number: $('Extraer Datos WhatsApp').first().json.phone_number\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        1872
+      ],
+      "id": "26039ec0-e676-4a43-9442-1d400acb575b",
+      "name": "Detectar Opción del Menú"
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "output": "=Output (0): {{ $json.detected_option === 'upload_prices' }}\nOutput (1): {{ $json.detected_option === 'make_order' }}\nOutput (2): {{ $json.detected_option === 'settings' }}\nOutput (3): {{ $json.detected_option === 'show_menu' || $json.detected_option === 'chat' }}"
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        512,
+        1840
+      ],
+      "id": "40156080-5c02-4d4b-aa6b-f9f4fbeb309f",
+      "name": "Router de Opciones"
+    },
+    {
+      "parameters": {
+        "tableId": "line_sessions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "={{ $json.phone_number }}_prices_{{ $now.toFormat('yyyyMMdd_HHmmss') }}"
+            },
+            {
+              "fieldId": "channel_id",
+              "fieldValue": "={{ $json.phone_number }}"
+            },
+            {
+              "fieldId": "restaurant_id",
+              "fieldValue": "={{ $json.restaurant_id }}"
+            },
+            {
+              "fieldId": "person_id",
+              "fieldValue": "={{ $json.person_id }}"
+            },
+            {
+              "fieldId": "channel_type",
+              "fieldValue": "whatsapp"
+            },
+            {
+              "fieldId": "session_type",
+              "fieldValue": "transactional"
+            },
+            {
+              "fieldId": "session_start",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "primary_intent",
+              "fieldValue": "upload_prices"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2048,
+        336
+      ],
+      "id": "NEW_SESSION_PRICES",
+      "name": "Crear Sesión Subir Precios",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
+        "options": {
+          "systemMessage": "Você é Frepi, assistente de compras especializado em cadastrar preços.\n\n🎯 MISSÃO: Receber e cadastrar listas de preços dos fornecedores\n\nO QUE VOCÊ PRECISA EXTRAIR DE CADA PRODUTO:\n1. Nome do produto\n2. Fornecedor\n3. Preço (valor numérico)\n4. Unidade (kg, litro, unidade, caixa, etc.)\n\nINSTRUÇÕES:\n- Aceite listas em QUALQUER formato (texto corrido, linhas, etc.)\n- Se algo não estiver claro, pergunte especificamente o que falta\n- Seja flexível: aceite \"Leite Piracanjuba R$ 4,50/L\" como válido\n- Sempre confirme TODOS os dados antes de finalizar\n\nFORMATO FINAL (quando tiver TODOS os dados confirmados):\nPRECOS_CONFIRMADOS\n[\n  {\n    \"produto\": \"nome do produto\",\n    \"fornecedor\": \"nome fornecedor\",\n    \"preco\": 10.50,\n    \"unidade\": \"kg\"\n  },\n  ...\n]\n\nPronto! Preços cadastrados com sucesso! ✅\n\nTOM: Eficiente, claro, profissional. Máximo 3 linhas por resposta.\n\nSE O USUÁRIO ENVIAR ALGO CONFUSO: Peça educadamente para esclarecer apenas o que está faltando."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2272,
+        336
+      ],
+      "id": "AGENT_UPLOAD_PRICES",
+      "name": "Agente Subir Precios"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2288,
+        560
+      ],
+      "id": "LLM_UPLOAD_PRICES",
+      "name": "OpenAI Chat Model5",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}_prices",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2416,
+        560
+      ],
+      "id": "MEMORY_UPLOAD_PRICES",
+      "name": "Simple Memory5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('💰 [Detectar Precios] Output del agente:', agentOutput);\n\nconst isPricesComplete = agentOutput.includes('PRECOS_CONFIRMADOS');\n\nlet preciosData = [];\nlet outputLimpio = agentOutput;\n\nif (isPricesComplete) {\n  try {\n    const jsonMatch = agentOutput.match(/\\[\\s*\\{[\\s\\S]*?\\}\\s*\\]/);    if (jsonMatch) {\n      preciosData = JSON.parse(jsonMatch[0]);\n      console.log('✅ [Detectar Precios] Precios parseados:', preciosData.length);\n    }\n    \n    outputLimpio = agentOutput\n      .replace(/PRECOS_CONFIRMADOS/g, '')\n      .replace(/\\[\\s*\\{[\\s\\S]*?\\}\\s*\\]/g, '')\n      .trim();\n    \n    if (!outputLimpio || outputLimpio.length < 10) {\n      outputLimpio = 'Pronto! Preços cadastrados com sucesso! ✅';\n    }\n  } catch (error) {\n    console.error('❌ [Detectar Precios] Error parseando:', error);\n  }\n}\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    prices_complete: isPricesComplete,\n    prices_data: preciosData,\n    output: outputLimpio,\n    original_output: agentOutput\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        336
+      ],
+      "id": "DETECT_PRICES_COMPLETE",
+      "name": "Detectar Precios Completos"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "PRICES_CHECK",
+              "leftValue": "={{ $json.prices_complete }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2848,
+        336
+      ],
+      "id": "IF_PRICES_COMPLETE",
+      "name": "¿Precios Completos?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🔄 Procesar cada precio y guardarlo\nconst pricesData = $input.first().json.prices_data;\nconst restaurantId = $('Preparar Datos Subir Precios').first().json.restaurant_id;\n\nconsole.log('💾 [Procesar Precios] Procesando', pricesData.length, 'precios');\n\nconst results = [];\n\nfor (const item of pricesData) {\n  try {\n    // 1. Buscar o crear proveedor\n    let supplierId = null;\n    \n    const { data: existingSupplier } = await $supabase\n      .from('suppliers')\n      .select('id')\n      .ilike('company_name', item.fornecedor)\n      .limit(1)\n      .single();\n    \n    if (existingSupplier) {\n      supplierId = existingSupplier.id;\n      console.log('✅ Proveedor existente:', item.fornecedor, supplierId);\n    } else {\n      const { data: newSupplier, error } = await $supabase\n        .from('suppliers')\n        .insert({\n          company_name: item.fornecedor,\n          is_active: true,\n          created_at: new Date().toISOString()\n        })\n        .select('id')\n        .single();\n      \n      if (!error && newSupplier) {\n        supplierId = newSupplier.id;\n        console.log('✅ Nuevo proveedor creado:', item.fornecedor, supplierId);\n      }\n    }\n    \n    if (!supplierId) {\n      console.error('❌ No se pudo obtener supplier_id para:', item.fornecedor);\n      continue;\n    }\n    \n    // 2. Buscar producto en master_list\n    const { data: masterProduct } = await $supabase\n      .from('master_list')\n      .select('id')\n      .ilike('product_name', `%${item.producto}%`)\n      .limit(1)\n      .single();\n    \n    const masterListId = masterProduct?.id || null;\n    \n    // 3. Guardar en supplier_mapped_products\n    const { data: mappedProduct, error: mapError } = await $supabase\n      .from('supplier_mapped_products')\n      .insert({\n        supplier_id: supplierId,\n        master_list_id: masterListId,\n        supplier_product_name: item.produto,\n        current_unit_price: item.preco,\n        price_per_unit_type: item.unidade,\n        currency: 'BRL',\n        mapping_confidence: masterListId ? 0.9 : 0.5,\n        mapping_method: 'user_input',\n        is_active: true,\n        created_at: new Date().toISOString()\n      })\n      .select('id')\n      .single();\n    \n    if (mapError) {\n      console.error('❌ Error guardando producto:', mapError);\n      continue;\n    }\n    \n    // 4. Guardar en pricing_history\n    await $supabase\n      .from('pricing_history')\n      .insert({\n        supplier_id: supplierId,\n        master_list_id: masterListId,\n        supplier_mapped_product_id: mappedProduct.id,\n        unit_price: item.preco,\n        currency: 'BRL',\n        price_per_unit_type: item.unidade,\n        effective_date: new Date().toISOString(),\n        snapshot_date: new Date().toISOString(),\n        data_source: 'whatsapp_user',\n        verification_status: 'pending',\n        created_at: new Date().toISOString()\n      });\n    \n    results.push({\n      producto: item.produto,\n      fornecedor: item.fornecedor,\n      success: true\n    });\n    \n    console.log('✅ Precio guardado:', item.produto, item.fornecedor, item.preco);\n    \n  } catch (error) {\n    console.error('❌ Error procesando precio:', error);\n    results.push({\n      producto: item.produto,\n      error: error.message\n    });\n  }\n}\n\nconsole.log(`✅ [Procesar Precios] ${results.filter(r => r.success).length}/${results.length} precios guardados`);\n\nreturn [{\n  json: {\n    phone_number: $input.first().json.phone_number,\n    total_prices: pricesData.length,\n    saved_successfully: results.filter(r => r.success).length,\n    results: results,\n    output: `✅ ${results.filter(r => r.success).length} preços cadastrados com sucesso!`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        240
+      ],
+      "id": "PROCESS_SAVE_PRICES",
+      "name": "Procesar y Guardar Precios",
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Buscar Usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Usuario": {
+      "main": [
+        [
+          {
+            "node": "¿Usuario Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Usuario Existe?": {
+      "main": [
+        [
+          {
+            "node": "Verificar Setup Completo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Sesión Activa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Onboarding Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Onboarding Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Onboarding Agent": {
+      "main": [
+        [
+          {
+            "node": "Detectar Onboarding Completo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Sesión Activa": {
+      "main": [
+        [
+          {
+            "node": "¿Existe Sesión Onboarding?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Existe Sesión Onboarding?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contexto de Sesión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear Nueva Sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contexto de Sesión": {
+      "main": [
+        [
+          {
+            "node": "Onboarding Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Nueva Sesión": {
+      "main": [
+        [
+          {
+            "node": "Preparar Input para Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Onboarding Completo": {
+      "main": [
+        [
+          {
+            "node": "¿Onboarding Completo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Onboarding Completo?": {
+      "main": [
+        [
+          {
+            "node": "Guardar Restaurante",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Actualizar Sesión Parcial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Restaurante": {
+      "main": [
+        [
+          {
+            "node": "Buscar Restaurante Recién Creado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Restaurante Recién Creado": {
+      "main": [
+        [
+          {
+            "node": "Extraer ID Restaurante",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer ID Restaurante": {
+      "main": [
+        [
+          {
+            "node": "Guardar Contacto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Contacto": {
+      "main": [
+        [
+          {
+            "node": "Marcar Sesión Completa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Sesión Completa": {
+      "main": [
+        [
+          {
+            "node": "Preparar Mensaje Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Sesión Parcial": {
+      "main": [
+        [
+          {
+            "node": "Preparar Output Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Output Onboarding": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Mensaje Final": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente de Compras",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Sesión de Compra": {
+      "main": [
+        [
+          {
+            "node": "Vector Search Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente de Compras",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente de Compras": {
+      "main": [
+        [
+          {
+            "node": "Extraer Respuesta Agente Compras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Respuesta Agente Compras": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Setup Completo": {
+      "main": [
+        [
+          {
+            "node": "¿Setup Completo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Setup Completo?": {
+      "main": [
+        [
+          {
+            "node": "Agente de Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear Sesión de Setup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Sesión de Setup": {
+      "main": [
+        [
+          {
+            "node": "Agente de Setup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente de Setup",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente de Setup",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente de Setup": {
+      "main": [
+        [
+          {
+            "node": "Detectar Setup Completo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Setup Completo": {
+      "main": [
+        [
+          {
+            "node": "¿Setup Finalizado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Setup Finalizado?": {
+      "main": [
+        [
+          {
+            "node": "Extraer Preferencias del Setup",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos para Guardar": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Restaurante con Preferencias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Restaurante con Preferencias": {
+      "main": [
+        [
+          {
+            "node": "Limpiar Output Después de Guardar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Opción del Menú": {
+      "main": [
+        [
+          {
+            "node": "Router de Opciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router de Opciones": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos Subir Precios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear Sesión de Compra",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mensaje Configurações",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Mostrar Menú o Chat?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es Interacción de Menú?": {
+      "main": [
+        [
+          {
+            "node": "Detectar Opción del Menú",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Mostrar Menú o Chat?": {
+      "main": [
+        [
+          {
+            "node": "Agente de Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear Sesión de Compra",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensaje Configurações": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Preferencias del Setup": {
+      "main": [
+        [
+          {
+            "node": "Extraer JSON de Preferencias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer JSON de Preferencias": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos para Guardar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extraer JSON de Preferencias",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory3": {
+      "ai_memory": [
+        [
+          {
+            "node": "Extraer JSON de Preferencias",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar Output Después de Guardar": {
+      "main": [
+        [
+          {
+            "node": "Agente de Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente de Menú Principal": {
+      "main": [
+        [
+          {
+            "node": "Detectar Acción del Agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente de Menú Principal",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory4": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente de Menú Principal",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Acción del Agente": {
+      "main": [
+        [
+          {
+            "node": "Router de Acciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router de Acciones": {
+      "main": [
+        [
+          {
+            "node": "Crear Sesión de Compra",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear Sesión de Setup",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Datos Subir Precios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Search Products": {
+      "main": [
+        [
+          {
+            "node": "Agente de Compras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Input para Onboarding": {
+      "main": [
+        [
+          {
+            "node": "Onboarding Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos Subir Precios": {
+      "main": [
+        [
+          {
+            "node": "Crear Sesión Subir Precios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Sesión Subir Precios": {
+      "main": [
+        [
+          {
+            "node": "Agente Subir Precios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Subir Precios": {
+      "main": [
+        [
+          {
+            "node": "Detectar Precios Completos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente Subir Precios",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory5": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente Subir Precios",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Precios Completos": {
+      "main": [
+        [
+          {
+            "node": "¿Precios Completos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Precios Completos?": {
+      "main": [
+        [
+          {
+            "node": "Procesar y Guardar Precios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar y Guardar Precios": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "NEW_VERSION_ENHANCED",
+  "meta": {
+    "instanceId": "49b8809ac9c6d78ac189292d079f6fecdaf436806e595e6107033a10240b1fea"
+  },
+  "id": "Rhy2ubYkQfWzXy92_enhanced",
+  "tags": []
+}
