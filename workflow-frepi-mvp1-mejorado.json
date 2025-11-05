@@ -1560,6 +1560,85 @@
           "name": "Frepi Supabase"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\nconst restaurantId = $('Vector Search Products').first().json.restaurant_id;\n\nconsole.log('🛒 [Detectar Pedido] Analizando output del agente');\n\nconst isPedidoCompleto = agentOutput.includes('PEDIDO_COMPLETO');\n\nlet productos = [];\nlet outputLimpio = agentOutput;\n\nif (isPedidoCompleto) {\n  try {\n    const lines = agentOutput.split('\\n');\n    let inItems = false;\n    \n    for (const line of lines) {\n      if (line.includes('Itens:')) {\n        inItems = true;\n        continue;\n      }\n      if (line.includes('Fornecedor')) {\n        inItems = false;\n      }\n      if (inItems && line.trim().startsWith('-')) {\n        const match = line.match(/- (.+?):\\s*([\\d.]+)\\s*(\\w+)/);\n        if (match) {\n          productos.push({\n            produto: match[1].trim(),\n            quantidade: parseFloat(match[2]),\n            unidade: match[3]\n          });\n        }\n      }\n    }\n    \n    console.log(`✅ [Detectar Pedido] ${productos.length} produtos detectados`);\n    \n    outputLimpio = agentOutput\n      .replace(/PEDIDO_COMPLETO/g, '')\n      .trim();\n    \n  } catch (error) {\n    console.error('❌ [Detectar Pedido] Error parseando:', error);\n  }\n}\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    restaurant_id: restaurantId,\n    pedido_completo: isPedidoCompleto,\n    produtos: productos,\n    output: outputLimpio,\n    original_output: agentOutput\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        624
+      ],
+      "id": "DETECT_ORDER_COMPLETE",
+      "name": "Detectar Pedido Completo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ORDER_COMPLETE_CHECK",
+              "leftValue": "={{ $json.pedido_completo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3040,
+        624
+      ],
+      "id": "IF_ORDER_COMPLETE",
+      "name": "¿Pedido Completo?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const productos = $input.first().json.produtos;\nconst restaurantId = $input.first().json.restaurant_id;\n\nconsole.log(`🔍 [Buscar Precios] Buscando precios para ${productos.length} productos`);\n\n// Obtener preferencias del restaurante\nconst { data: restaurant } = await $supabase\n  .from('restaurants')\n  .select('price_sensitivity, preferred_suppliers')\n  .eq('id', restaurantId)\n  .single();\n\nconst priceSensitivity = restaurant?.price_sensitivity || 0.5;\nconst preferredSuppliers = restaurant?.preferred_suppliers || [];\n\nconsole.log(`💡 [Buscar Precios] Price sensitivity: ${priceSensitivity}`);\n\nconst resultados = [];\n\nfor (const producto of productos) {\n  try {\n    // Buscar en master_list por similaridad\n    const { data: masterProducts } = await $supabase\n      .from('master_list')\n      .select('id, product_name')\n      .ilike('product_name', `%${producto.produto}%`)\n      .limit(3);\n    \n    if (!masterProducts || masterProducts.length === 0) {\n      console.log(`⚠️ Producto no encontrado en catálogo: ${producto.produto}`);\n      resultados.push({\n        produto: producto.produto,\n        quantidade: produto.quantidade,\n        unidade: produto.unidade,\n        opciones: [],\n        no_encontrado: true\n      });\n      continue;\n    }\n    \n    const masterListIds = masterProducts.map(p => p.id);\n    \n    // Buscar TODOS los precios de TODOS los proveedores\n    const { data: supplierPrices } = await $supabase\n      .from('supplier_mapped_products')\n      .select(\\`\n        id,\n        supplier_id,\n        supplier_product_name,\n        current_unit_price,\n        price_per_unit_type,\n        suppliers (\n          id,\n          company_name,\n          is_preferred\n        )\n      \\`)\n      .in('master_list_id', masterListIds)\n      .eq('is_active', true);\n    \n    if (!supplierPrices || supplierPrices.length === 0) {\n      console.log(`⚠️ No hay precios para: ${producto.produto}`);\n      resultados.push({\n        produto: producto.produto,\n        quantidade: produto.quantidade,\n        unidade: produto.unidade,\n        opciones: [],\n        sin_precios: true\n      });\n      continue;\n    }\n    \n    console.log(`✅ Encontrados ${supplierPrices.length} precios para ${producto.produto}`);\n    \n    // Calcular score para cada opción\n    const opciones = supplierPrices.map(price => {\n      const supplier = price.suppliers;\n      \n      // Score base: precio (invertido y normalizado)\n      const allPrices = supplierPrices.map(p => p.current_unit_price);\n      const minPrice = Math.min(...allPrices);\n      const maxPrice = Math.max(...allPrices);\n      const priceRange = maxPrice - minPrice;\n      \n      let priceScore = 1.0;\n      if (priceRange > 0) {\n        priceScore = 1 - ((price.current_unit_price - minPrice) / priceRange);\n      }\n      \n      // Bonus si es proveedor preferido\n      const preferredBonus = preferredSuppliers.includes(supplier.id) ? 0.2 : 0;\n      \n      // Score final ponderado por price_sensitivity\n      // price_sensitivity alto (0.8) = más importancia a calidad/preferido\n      // price_sensitivity bajo (0.2) = más importancia a precio bajo\n      const finalScore = (priceScore * (1 - priceSensitivity)) + \n                        (preferredBonus * priceSensitivity);\n      \n      return {\n        supplier_id: supplier.id,\n        supplier_name: supplier.company_name,\n        product_name: price.supplier_product_name,\n        price: price.current_unit_price,\n        unit: price.price_per_unit_type,\n        is_preferred: preferredSuppliers.includes(supplier.id),\n        price_score: priceScore,\n        final_score: finalScore\n      };\n    });\n    \n    // Ordenar por score\n    opciones.sort((a, b) => b.final_score - a.final_score);\n    \n    resultados.push({\n      produto: producto.produto,\n      quantidade: produto.quantidade,\n      unidade: produto.unidade,\n      opciones: opciones,\n      mejor_opcion: opciones[0],\n      total_opciones: opciones.length\n    });\n    \n  } catch (error) {\n    console.error(`❌ Error buscando ${producto.produto}:`, error);\n  }\n}\n\nconsole.log(`✅ [Buscar Precios] Análisis completo: ${resultados.length} productos`);\n\nreturn [{\n  json: {\n    phone_number: $input.first().json.phone_number,\n    restaurant_id: restaurantId,\n    price_sensitivity: priceSensitivity,\n    resultados: resultados,\n    productos_analizados: resultados.length\n  }\n}];",
+        "credentials": {
+          "supabaseApi": {
+            "id": "YaSYB0r907WCaDZK",
+            "name": "Frepi Supabase"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3328,
+        528
+      ],
+      "id": "SEARCH_ALL_SUPPLIERS",
+      "name": "Buscar Precios Todos Proveedores"
+    },
+    {
+      "parameters": {
+        "jsCode": "const resultados = $input.first().json.resultados;\nconst phoneNumber = $input.first().json.phone_number;\nconst priceSensitivity = $input.first().json.price_sensitivity;\n\nconsole.log('💎 [Generar Recomendación] Creando mensaje para usuario');\n\nlet mensaje = '🎯 *RECOMENDAÇÃO DE COMPRA*\\n\\n';\n\nlet totalEstimado = 0;\nlet fornecedorPrincipal = null;\nconst fornecedoresUsados = new Set();\n\nfor (const item of resultados) {\n  if (item.no_encontrado) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Produto não encontrado no catálogo.\\n\\n`;\n    continue;\n  }\n  \n  if (item.sin_precios) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Sem preços cadastrados.\\n\\n`;\n    continue;\n  }\n  \n  const mejor = item.mejor_opcion;\n  const subtotal = mejor.price * item.quantidade;\n  totalEstimado += subtotal;\n  \n  fornecedoresUsados.add(mejor.supplier_name);\n  \n  mensaje += `✅ *${item.produto}*\\n`;\n  mensaje += `📦 ${item.quantidade} ${item.unidade}\\n`;\n  mensaje += `🏪 *${mejor.supplier_name}*`;\n  if (mejor.is_preferred) mensaje += ' ⭐ (Preferido)';\n  mensaje += `\\n💰 R$ ${mejor.price.toFixed(2)}/${mejor.unit}`;\n  mensaje += ` = *R$ ${subtotal.toFixed(2)}*\\n`;\n  \n  // Mostrar alternativas si hay\n  if (item.opciones.length > 1) {\n    mensaje += `\\n_Outras opções:_\\n`;\n    for (let i = 1; i < Math.min(3, item.opciones.length); i++) {\n      const alt = item.opciones[i];\n      const diff = ((alt.price - mejor.price) / mejor.price * 100).toFixed(0);\n      const signo = diff > 0 ? '+' : '';\n      mensaje += `   • ${alt.supplier_name}: R$ ${alt.price.toFixed(2)} (${signo}${diff}%)\\n`;\n    }\n  }\n  \n  mensaje += '\\n';\n}\n\nmensaje += `━━━━━━━━━━━━━━━━\\n`;\nmensaje += `💵 *TOTAL ESTIMADO: R$ ${totalEstimado.toFixed(2)}*\\n\\n`;\n\nif (fornecedoresUsados.size === 1) {\n  mensaje += `✨ Você pode fazer tudo com *${[...fornecedoresUsados][0]}*!\\n\\n`;\n} else {\n  mensaje += `📋 Fornecedores sugeridos: ${[...fornecedoresUsados].join(', ')}\\n\\n`;\n}\n\n// Explicar criterio\nif (priceSensitivity < 0.4) {\n  mensaje += '💡 _Priorizei menor preço_\\n';\n} else if (priceSensitivity > 0.6) {\n  mensaje += '💡 _Priorizei qualidade e fornecedores preferidos_\\n';\n} else {\n  mensaje += '💡 _Priorizei equilíbrio entre preço e qualidade_\\n';\n}\n\nmensaje += '\\nConfirma o pedido? 👍';\n\nconsole.log('✅ [Generar Recomendación] Mensaje creado');\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber,\n    total_estimado: totalEstimado,\n    fornecedores: [...fornecedoresUsados]\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3616,
+        528
+      ],
+      "id": "GENERATE_RECOMMENDATION",
+      "name": "Generar Recomendación"
     }
   ],
   "pinData": {},
@@ -1864,7 +1943,7 @@
       "main": [
         [
           {
-            "node": "Enviar Respuesta",
+            "node": "Detectar Pedido Completo",
             "type": "main",
             "index": 0
           }
@@ -2323,6 +2402,57 @@
       ]
     },
     "Procesar y Guardar Precios": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Pedido Completo": {
+      "main": [
+        [
+          {
+            "node": "¿Pedido Completo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Pedido Completo?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Precios Todos Proveedores",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Precios Todos Proveedores": {
+      "main": [
+        [
+          {
+            "node": "Generar Recomendación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Recomendación": {
       "main": [
         [
           {
