@@ -2720,7 +2720,7 @@
         ],
         [
           {
-            "node": "GENERATE_PREFERENCES_SUBMENU",
+            "node": "Generar Submenú Preferencias",
             "type": "main",
             "index": 0
           }
@@ -2734,7 +2734,7 @@
         ],
         [
           {
-            "node": "AGENT_REGISTER_FORNECEDOR",
+            "node": "Agente Registrar Fornecedor",
             "type": "main",
             "index": 0
           }
@@ -2985,7 +2985,7 @@
         ]
       ]
     },
-    "AGENT_CONFIG_PRODUTOS": {
+    "Agente Config Produtos": {
       "main": [
         [
           {
@@ -2996,11 +2996,11 @@
         ]
       ]
     },
-    "AGENT_REGISTER_FORNECEDOR": {
+    "Agente Registrar Fornecedor": {
       "main": [
         [
           {
-            "node": "DETECT_DUPLICATE_DECISION",
+            "node": "Detectar Decisión Duplicado",
             "type": "main",
             "index": 0
           }
@@ -3011,7 +3011,7 @@
       "ai_languageModel": [
         [
           {
-            "node": "AGENT_REGISTER_FORNECEDOR",
+            "node": "Agente Registrar Fornecedor",
             "type": "ai_languageModel",
             "index": 0
           }
@@ -3022,29 +3022,29 @@
       "ai_memory": [
         [
           {
-            "node": "AGENT_REGISTER_FORNECEDOR",
+            "node": "Agente Registrar Fornecedor",
             "type": "ai_memory",
             "index": 0
           }
         ]
       ]
     },
-    "DETECT_FORNECEDOR_COMPLETE": {
+    "Detectar Fornecedor Completo": {
       "main": [
         [
           {
-            "node": "IF_FORNECEDOR_COMPLETE",
+            "node": "¿Fornecedor Completo?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "IF_FORNECEDOR_COMPLETE": {
+    "¿Fornecedor Completo?": {
       "main": [
         [
           {
-            "node": "SAVE_FORNECEDOR_DB",
+            "node": "Guardar Fornecedor BD",
             "type": "main",
             "index": 0
           }
@@ -3058,86 +3058,86 @@
         ]
       ]
     },
-    "SAVE_FORNECEDOR_DB": {
+    "Guardar Fornecedor BD": {
       "main": [
         [
           {
-            "node": "CHECK_IF_DUPLICATE",
+            "node": "Check If Duplicate",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "GENERATE_PREFERENCES_SUBMENU": {
+    "Generar Submenú Preferencias": {
       "main": [
         [
           {
-            "node": "DETECT_PREFERENCE_OPTION",
+            "node": "Detectar Opción Preferencia",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DETECT_PREFERENCE_OPTION": {
+    "Detectar Opción Preferencia": {
       "main": [
         [
           {
-            "node": "ROUTER_PREFERENCES",
+            "node": "Router Preferencias",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "ROUTER_PREFERENCES": {
+    "Router Preferencias": {
       "main": [
         [
           {
-            "node": "AGENT_CONFIG_PRODUTOS",
+            "node": "Agente Config Produtos",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "GENERATE_MAIN_MENU",
+            "node": "Generar Menú Principal",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "GENERATE_MAIN_MENU",
+            "node": "Generar Menú Principal",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "GENERATE_MAIN_MENU",
+            "node": "Generar Menú Principal",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "GENERATE_MAIN_MENU",
+            "node": "Generar Menú Principal",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "GENERATE_MAIN_MENU",
+            "node": "Generar Menú Principal",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "GENERATE_PREFERENCES_SUBMENU",
+            "node": "Generar Submenú Preferencias",
             "type": "main",
             "index": 0
           }
@@ -3148,7 +3148,7 @@
       "ai_languageModel": [
         [
           {
-            "node": "AGENT_CONFIG_PRODUTOS",
+            "node": "Agente Config Produtos",
             "type": "ai_languageModel",
             "index": 0
           }
@@ -3159,14 +3159,14 @@
       "ai_memory": [
         [
           {
-            "node": "AGENT_CONFIG_PRODUTOS",
+            "node": "Agente Config Produtos",
             "type": "ai_memory",
             "index": 0
           }
         ]
       ]
     },
-    "GENERATE_MAIN_MENU": {
+    "Generar Menú Principal": {
       "main": [
         [
           {
@@ -3177,7 +3177,7 @@
         ]
       ]
     },
-    "CHECK_IF_DUPLICATE": {
+    "Check If Duplicate": {
       "main": [
         [
           {
@@ -3195,7 +3195,7 @@
         ]
       ]
     },
-    "HANDLE_DUPLICATE_SUPPLIER_DECISION": {
+    "Handle Duplicate Decision": {
       "main": [
         [
           {
@@ -3206,29 +3206,29 @@
         ]
       ]
     },
-    "DETECT_DUPLICATE_DECISION": {
+    "Detectar Decisión Duplicado": {
       "main": [
         [
           {
-            "node": "ROUTER_DUPLICATE_DECISION",
+            "node": "Router: ¿Es Decisión Duplicado?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "ROUTER_DUPLICATE_DECISION": {
+    "Router: ¿Es Decisión Duplicado?": {
       "main": [
         [
           {
-            "node": "HANDLE_DUPLICATE_SUPPLIER_DECISION",
+            "node": "Handle Duplicate Decision",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "DETECT_FORNECEDOR_COMPLETE",
+            "node": "Detectar Fornecedor Completo",
             "type": "main",
             "index": 0
           }
