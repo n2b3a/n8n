@@ -729,7 +729,7 @@
         "promptType": "define",
         "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
         "options": {
-          "systemMessage": "{{ $('Vector Search Products').first().json.products_context }}\n\nIMPORTANTE: Os produtos sugeridos acima estão verificados no nosso catálogo.\n\n---\n\n🛒 Você é Frepi, assistente de compras por WhatsApp para restaurantes.\n\nCONTEXTO DA SESSÃO:\nSessão ID: {{ $('Vector Search Products').first().json.session_id }}\nUsuário: {{ $('Vector Search Products').first().json.phone_number }}\n\n🎯 SUA MISSÃO: Ajudar o restaurante a fazer um pedido de produtos\n\nINSTRUÇÕES:\n1. Para cada produto mencionado:\n   - Confirme o nome exato (usando catálogo 📦)\n   - Pergunte a quantidade 🔢\n   - Confirme a unidade (kg, litro, unidade, caixa) 📏\n\n2. Se há PRODUTOS SUGERIDOS do catálogo:\n   - Pergunte: \"Quer algum destes?\" 🤔\n   - Se sim: confirme quantidade\n   - Se não: esclareça o que precisa\n\n3. Quando tiver ≥ 1 produto completo:\n   - Pergunte: \"Quer adicionar mais?\" ➕\n   - Se não: resuma e confirme ✅\n\n4. FORMATO FINAL quando pedido completo:\nPEDIDO_COMPLETO\nItens:\n- [produto 1]: [quantidade] [unidade]\n- [produto 2]: [quantidade] [unidade]\nFornecedor preferido: [fornecedor ou 'não especificado']\n\nVou buscar as melhores opções! 🔍\n\nTOM: Natural, breve, amigável. Máximo 2-3 linhas. Use emojis: 🛒 📦 ✅ 🔢"
+          "systemMessage": "{{ $('Vector Search Products').first().json.products_context }}\n\nIMPORTANTE: Os produtos sugeridos acima estão verificados no nosso catálogo.\n\n---\n\n🛒 Você é Frepi, assistente de compras por WhatsApp para restaurantes.\n\nCONTEXTO DA SESSÃO:\nSessão ID: {{ $('Vector Search Products').first().json.session_id }}\nUsuário: {{ $('Vector Search Products').first().json.phone_number }}\n\n🎯 SUA MISSÃO: Ajudar o restaurante a fazer um pedido de produtos\n\n⚠️ *IMPORTANTE*:\nVocê NÃO envia pedidos automaticamente aos fornecedores.\nVocê APENAS recomenda as melhores opções baseado nos preços cadastrados.\nO restaurante fará o pedido DIRETAMENTE com os fornecedores escolhidos.\n\nINSTRUÇÕES:\n1. Para cada produto mencionado:\n   - Confirme o nome exato (usando catálogo 📦)\n   - Pergunte a quantidade 🔢\n   - Confirme a unidade (kg, litro, unidade, caixa) 📏\n\n2. Se há PRODUTOS SUGERIDOS do catálogo:\n   - Pergunte: \"Quer algum destes?\" 🤔\n   - Se sim: confirme quantidade\n   - Se não: esclareça o que precisa\n\n3. Quando tiver ≥ 1 produto completo:\n   - Pergunte: \"Quer adicionar mais?\" ➕\n   - Se não: resuma e confirme ✅\n\n4. FORMATO FINAL quando pedido completo:\nPEDIDO_COMPLETO\nItens:\n- [produto 1]: [quantidade] [unidade]\n- [produto 2]: [quantidade] [unidade]\nFornecedor preferido: [fornecedor ou 'não especificado']\n\nVou buscar as melhores opções! 🔍\n\nTOM: Natural, breve, amigável. Máximo 2-3 linhas. Use emojis: 🛒 📦 ✅ 🔢"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1354,7 +1354,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const message = $('Extraer Datos WhatsApp').first().json.message.toLowerCase().trim();\nconst user = $('Verificar Setup Completo').first().json;\n\nlet option = null;\n\nif (message.includes('1') || message.includes('preço') || message.includes('preco') || message.includes('lista de preço')) {\n  option = 'upload_prices';\n} else if (message.includes('2') || message.includes('pedido') || message.includes('compra') || message.includes('comprar')) {\n  option = 'make_order';\n} else if (message.includes('menu') || message.includes('opções') || message.includes('opcoes') || message.includes('oi') || message.includes('olá')) {\n  option = 'show_menu';\n} else if (message.includes('3') || message.includes('config') || message.includes('configuração')) {\n  option = 'settings';\n} else {\n  option = 'chat';\n}\n\nreturn [{\n  json: {\n    detected_option: option,\n    original_message: message,\n    user_data: user,\n    phone_number: $('Extraer Datos WhatsApp').first().json.phone_number\n  }\n}];"
+        "jsCode": "const mensaje = $input.first().json.message.toLowerCase();\nconst usuario = $input.first().json;\n\nconsole.log(`🔍 [Detectar Opción] Mensaje recibido: \"${mensaje}\"`);\n\n// Detectar \"Hacer una compra\" (Opción 1)\nif (mensaje.includes('1') ||\n    mensaje.includes('compra') ||\n    mensaje.includes('pedido') ||\n    mensaje.includes('fazer uma compra') ||\n    mensaje.includes('fazer compra') ||\n    mensaje.includes('quero comprar') ||\n    mensaje.includes('preciso comprar')) {\n  console.log('✅ [Detectar Opción] Detectado: HACER_COMPRA');\n  return [{\n    json: {\n      ...usuario,\n      accion_detectada: 'HACER_COMPRA',\n      output_route: 0\n    }\n  }];\n}\n\n// Detectar \"Atualizar preços\" (Opción 2)\nif (mensaje.includes('2') ||\n    mensaje.includes('precio') ||\n    mensaje.includes('preço') ||\n    mensaje.includes('atualizar preço') ||\n    mensaje.includes('cadastrar preço') ||\n    mensaje.includes('enviar preço') ||\n    mensaje.includes('registrar preço')) {\n  console.log('✅ [Detectar Opción] Detectado: ACTUALIZAR_PRECIOS');\n  return [{\n    json: {\n      ...usuario,\n      accion_detectada: 'ACTUALIZAR_PRECIOS',\n      output_route: 1\n    }\n  }];\n}\n\n// Detectar \"Registrar fornecedor\" (Opción 3)\nif (mensaje.includes('3') ||\n    mensaje.includes('fornecedor') ||\n    mensaje.includes('registrar fornecedor') ||\n    mensaje.includes('cadastrar fornecedor') ||\n    mensaje.includes('adicionar fornecedor') ||\n    mensaje.includes('novo fornecedor')) {\n  console.log('✅ [Detectar Opción] Detectado: REGISTRAR_FORNECEDOR');\n  return [{\n    json: {\n      ...usuario,\n      accion_detectada: 'REGISTRAR_FORNECEDOR',\n      output_route: 2\n    }\n  }];\n}\n\n// Detectar \"Configurar preferências\" (Opción 4)\nif (mensaje.includes('4') ||\n    mensaje.includes('preferencia') ||\n    mensaje.includes('preferência') ||\n    mensaje.includes('configurar') ||\n    mensaje.includes('configuração') ||\n    mensaje.includes('config')) {\n  console.log('✅ [Detectar Opción] Detectado: CONFIGURAR_PREFERENCIAS');\n  return [{\n    json: {\n      ...usuario,\n      accion_detectada: 'CONFIGURAR_PREFERENCIAS',\n      output_route: 3\n    }\n  }];\n}\n\n// Si no se detecta ninguna opción válida\nconsole.log('❌ [Detectar Opción] No se detectó ninguna opción válida');\nreturn [{\n  json: {\n    ...usuario,\n    accion_detectada: 'DESCONOCIDA',\n    output_route: 4,\n    output: `❓ Desculpe, não entendi.\n\nPor favor, escolha uma das opções:\n\n1️⃣ Fazer uma compra\n2️⃣ Atualizar preços de fornecedor\n3️⃣ Registrar/Atualizar fornecedor\n4️⃣ Configurar preferências\n\nVocê pode digitar o número ou descrever o que precisa.`\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1629,7 +1629,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const resultados = $input.first().json.resultados;\nconst phoneNumber = $input.first().json.phone_number;\nconst priceSensitivity = $input.first().json.price_sensitivity;\n\nconsole.log('💎 [Generar Recomendación] Creando mensaje para usuario');\n\nlet mensaje = '🎯 *RECOMENDAÇÃO DE COMPRA*\\n\\n';\n\nlet totalEstimado = 0;\nlet fornecedorPrincipal = null;\nconst fornecedoresUsados = new Set();\n\nfor (const item of resultados) {\n  if (item.no_encontrado) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Produto não encontrado no catálogo.\\n\\n`;\n    continue;\n  }\n  \n  if (item.sin_precios) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Sem preços cadastrados.\\n\\n`;\n    continue;\n  }\n  \n  const mejor = item.mejor_opcion;\n  const subtotal = mejor.price * item.quantidade;\n  totalEstimado += subtotal;\n  \n  fornecedoresUsados.add(mejor.supplier_name);\n  \n  mensaje += `✅ *${item.produto}*\\n`;\n  mensaje += `📦 ${item.quantidade} ${item.unidade}\\n`;\n  mensaje += `🏪 *${mejor.supplier_name}*`;\n  if (mejor.is_preferred) mensaje += ' ⭐ (Preferido)';\n  mensaje += `\\n💰 R$ ${mejor.price.toFixed(2)}/${mejor.unit}`;\n  mensaje += ` = *R$ ${subtotal.toFixed(2)}*\\n`;\n  \n  // Mostrar alternativas si hay\n  if (item.opciones.length > 1) {\n    mensaje += `\\n_Outras opções:_\\n`;\n    for (let i = 1; i < Math.min(3, item.opciones.length); i++) {\n      const alt = item.opciones[i];\n      const diff = ((alt.price - mejor.price) / mejor.price * 100).toFixed(0);\n      const signo = diff > 0 ? '+' : '';\n      mensaje += `   • ${alt.supplier_name}: R$ ${alt.price.toFixed(2)} (${signo}${diff}%)\\n`;\n    }\n  }\n  \n  mensaje += '\\n';\n}\n\nmensaje += `━━━━━━━━━━━━━━━━\\n`;\nmensaje += `💵 *TOTAL ESTIMADO: R$ ${totalEstimado.toFixed(2)}*\\n\\n`;\n\nif (fornecedoresUsados.size === 1) {\n  mensaje += `✨ Você pode fazer tudo com *${[...fornecedoresUsados][0]}*!\\n\\n`;\n} else {\n  mensaje += `📋 Fornecedores sugeridos: ${[...fornecedoresUsados].join(', ')}\\n\\n`;\n}\n\n// Explicar criterio\nif (priceSensitivity < 0.4) {\n  mensaje += '💡 _Priorizei menor preço_\\n';\n} else if (priceSensitivity > 0.6) {\n  mensaje += '💡 _Priorizei qualidade e fornecedores preferidos_\\n';\n} else {\n  mensaje += '💡 _Priorizei equilíbrio entre preço e qualidade_\\n';\n}\n\nmensaje += '\\nConfirma o pedido? 👍';\n\nconsole.log('✅ [Generar Recomendación] Mensaje creado');\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber,\n    total_estimado: totalEstimado,\n    fornecedores: [...fornecedoresUsados]\n  }\n}];"
+        "jsCode": "const resultados = $input.first().json.resultados;\nconst phoneNumber = $input.first().json.phone_number;\nconst priceSensitivity = $input.first().json.price_sensitivity;\n\nconsole.log('💎 [Generar Recomendación] Creando mensaje para usuario');\n\nlet mensaje = '🎯 *RECOMENDAÇÃO DE COMPRA*\\n\\n';\n\nlet totalEstimado = 0;\nlet fornecedorPrincipal = null;\nconst fornecedoresUsados = new Set();\n\nfor (const item of resultados) {\n  if (item.no_encontrado) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Produto não encontrado no catálogo.\\n\\n`;\n    continue;\n  }\n  \n  if (item.sin_precios) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Sem preços cadastrados.\\n\\n`;\n    continue;\n  }\n  \n  const mejor = item.mejor_opcion;\n  const subtotal = mejor.price * item.quantidade;\n  totalEstimado += subtotal;\n  \n  fornecedoresUsados.add(mejor.supplier_name);\n  \n  mensaje += `✅ *${item.produto}*\\n`;\n  mensaje += `📦 ${item.quantidade} ${item.unidade}\\n`;\n  mensaje += `🏪 *${mejor.supplier_name}*`;\n  if (mejor.is_preferred) mensaje += ' ⭐ (Preferido)';\n  mensaje += `\\n💰 R$ ${mejor.price.toFixed(2)}/${mejor.unit}`;\n  mensaje += ` = *R$ ${subtotal.toFixed(2)}*\\n`;\n  \n  // Mostrar alternativas si hay\n  if (item.opciones.length > 1) {\n    mensaje += `\\n_Outras opções:_\\n`;\n    for (let i = 1; i < Math.min(3, item.opciones.length); i++) {\n      const alt = item.opciones[i];\n      const diff = ((alt.price - mejor.price) / mejor.price * 100).toFixed(0);\n      const signo = diff > 0 ? '+' : '';\n      mensaje += `   • ${alt.supplier_name}: R$ ${alt.price.toFixed(2)} (${signo}${diff}%)\\n`;\n    }\n  }\n  \n  mensaje += '\\n';\n}\n\nmensaje += `━━━━━━━━━━━━━━━━\\n`;\nmensaje += `💵 *TOTAL ESTIMADO: R$ ${totalEstimado.toFixed(2)}*\\n\\n`;\n\nif (fornecedoresUsados.size === 1) {\n  mensaje += `✨ Você pode fazer tudo com *${[...fornecedoresUsados][0]}*!\\n\\n`;\n} else {\n  mensaje += `📋 Fornecedores sugeridos: ${[...fornecedoresUsados].join(', ')}\\n\\n`;\n}\n\n// Explicar criterio\nif (priceSensitivity < 0.4) {\n  mensaje += '💡 _Priorizei menor preço_\\n';\n} else if (priceSensitivity > 0.6) {\n  mensaje += '💡 _Priorizei qualidade e fornecedores preferidos_\\n';\n} else {\n  mensaje += '💡 _Priorizei equilíbrio entre preço e qualidade_\\n';\n}\n\nmensaje += '\\nEsta é uma recomendação. Você precisa fazer o pedido diretamente com os fornecedores? 👍';\n\nconsole.log('✅ [Generar Recomendación] Mensaje creado');\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber,\n    total_estimado: totalEstimado,\n    fornecedores: [...fornecedoresUsados]\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2009,6 +2009,82 @@
       ],
       "id": "IF_FORNECEDOR_COMPLETE",
       "name": "¿Fornecedor Completo?"
+    },
+    {
+      "id": "HANDLE_DUPLICATE_SUPPLIER_DECISION",
+      "name": "Handle Duplicate Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1860,
+        2328
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const input = $input.first().json;\nconst mensaje = input.message.toLowerCase();\nconst existingSuppliers = input.existing_suppliers;\nconst newSupplierData = input.new_supplier_data;\nconst phoneNumber = input.phone_number;\n\nconsole.log(`🔀 [Handle Duplicate] Opción elegida: \"${mensaje}\"`);\n\n// Opción 1: Crear nuevo de todos modos\nif (mensaje.includes('1') || mensaje.includes('criar') || mensaje.includes('novo')) {\n  console.log('✅ [Handle Duplicate] Usuario eligió: CREAR NUEVO');\n\n  const { data: newSupplier, error: insertError } = await $supabase\n    .from('suppliers')\n    .insert({\n      company_name: newSupplierData.nome,\n      whatsapp_number: newSupplierData.telefone,\n      delivery_days: { dias: newSupplierData.dias },\n      is_active: true,\n      created_at: new Date().toISOString()\n    })\n    .select('id')\n    .single();\n\n  if (insertError) {\n    return [{\n      json: {\n        success: false,\n        error: insertError.message,\n        output: `❌ Erro ao cadastrar: ${insertError.message}`,\n        phone_number: phoneNumber\n      }\n    }];\n  }\n\n  const supplierId = newSupplier.id;\n\n  // Link products\n  if (newSupplierData.produtos && newSupplierData.produtos.length > 0) {\n    for (const produto of newSupplierData.produtos) {\n      await $supabase\n        .from('supplier_mapped_products')\n        .insert({\n          supplier_id: supplierId,\n          supplier_product_name: produto,\n          current_unit_price: 0,\n          is_active: true\n        });\n    }\n  }\n\n  return [{\n    json: {\n      success: true,\n      action: 'created_new',\n      supplier_id: supplierId,\n      output: `✅ *Novo fornecedor cadastrado!*\\n\\n📦 *${newSupplierData.nome}*\\n\\nDigite \"menu\" para voltar.`,\n      phone_number: phoneNumber\n    }\n  }];\n}\n\n// Opción 2: Atualizar existente\nif (mensaje.includes('2') || mensaje.includes('atualizar') || mensaje.includes('sobrescrever')) {\n  console.log('✅ [Handle Duplicate] Usuario eligió: ATUALIZAR EXISTENTE');\n\n  const targetSupplier = existingSuppliers[0]; // First one\n\n  const { error: updateError } = await $supabase\n    .from('suppliers')\n    .update({\n      whatsapp_number: newSupplierData.telefone,\n      delivery_days: { dias: newSupplierData.dias },\n      updated_at: new Date().toISOString()\n    })\n    .eq('id', targetSupplier.id);\n\n  if (updateError) {\n    return [{\n      json: {\n        success: false,\n        error: updateError.message,\n        output: `❌ Erro ao atualizar: ${updateError.message}`,\n        phone_number: phoneNumber\n      }\n    }];\n  }\n\n  // Add new products\n  if (newSupplierData.produtos && newSupplierData.produtos.length > 0) {\n    for (const produto of newSupplierData.produtos) {\n      await $supabase\n        .from('supplier_mapped_products')\n        .insert({\n          supplier_id: targetSupplier.id,\n          supplier_product_name: produto,\n          current_unit_price: 0,\n          is_active: true\n        });\n    }\n  }\n\n  return [{\n    json: {\n      success: true,\n      action: 'updated_existing',\n      supplier_id: targetSupplier.id,\n      output: `✅ *Fornecedor atualizado!*\\n\\n📦 *${targetSupplier.company_name}*\\n\\nDigite \"menu\" para voltar.`,\n      phone_number: phoneNumber\n    }\n  }];\n}\n\n// Opción 3: Cancelar\nif (mensaje.includes('3') || mensaje.includes('cancelar') || mensaje.includes('não')) {\n  console.log('❌ [Handle Duplicate] Usuario eligió: CANCELAR');\n\n  return [{\n    json: {\n      success: false,\n      action: 'cancelled',\n      output: `❌ Cadastro cancelado.\\n\\nDigite \"menu\" para voltar ao menu principal.`,\n      phone_number: phoneNumber\n    }\n  }];\n}\n\n// No valid option\nreturn [{\n  json: {\n    output: `❓ Por favor, escolha uma opção válida (1, 2 ou 3).`,\n    phone_number: phoneNumber,\n    needs_user_decision: true\n  }\n}];"
+      }
+    },
+    {
+      "id": "CHECK_IF_DUPLICATE",
+      "name": "Check If Duplicate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1660,
+        2328
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.duplicate_found }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "DETECT_DUPLICATE_DECISION",
+      "name": "Detectar Decisión Duplicado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        2528
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const input = $input.first().json;\nconst output = input.output || '';\n\nconsole.log(`🔍 [Detectar Decisión] Output: ${output.substring(0, 100)}...`);\n\n// Check if this is a duplicate decision response\nif (output.includes('DECISAO_DUPLICADO:')) {\n  const match = output.match(/DECISAO_DUPLICADO:(\\d)/);\n  if (match) {\n    const decision = match[1];\n    console.log(`✅ [Detectar Decisión] Detectada decisión de duplicado: ${decision}`);\n\n    return [{\n      json: {\n        ...input,\n        is_duplicate_decision: true,\n        duplicate_choice: decision,\n        message: decision, // Simulate user message for handler\n        output_route: 0  // Route to handler\n      }\n    }];\n  }\n}\n\n// Not a duplicate decision - continue normal flow\nconsole.log(`➡️ [Detectar Decisión] No es decisión de duplicado, flujo normal`);\nreturn [{\n  json: {\n    ...input,\n    is_duplicate_decision: false,\n    output_route: 1  // Route to normal save\n  }\n}];"
+      }
+    },
+    {
+      "id": "ROUTER_DUPLICATE_DECISION",
+      "name": "Router: ¿Es Decisión Duplicado?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1700,
+        2528
+      ],
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "conditions": {
+                "boolean": [
+                  {
+                    "value1": "={{ $json.is_duplicate_decision }}",
+                    "value2": true
+                  }
+                ]
+              },
+              "renameOutput": false
+            }
+          ]
+        },
+        "options": {}
+      }
     }
   ],
   "pinData": {},
@@ -2924,7 +3000,7 @@
       "main": [
         [
           {
-            "node": "DETECT_FORNECEDOR_COMPLETE",
+            "node": "DETECT_DUPLICATE_DECISION",
             "type": "main",
             "index": 0
           }
@@ -2986,7 +3062,7 @@
       "main": [
         [
           {
-            "node": "Enviar Respuesta",
+            "node": "CHECK_IF_DUPLICATE",
             "type": "main",
             "index": 0
           }
@@ -3095,6 +3171,64 @@
         [
           {
             "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CHECK_IF_DUPLICATE": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HANDLE_DUPLICATE_SUPPLIER_DECISION": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DETECT_DUPLICATE_DECISION": {
+      "main": [
+        [
+          {
+            "node": "ROUTER_DUPLICATE_DECISION",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ROUTER_DUPLICATE_DECISION": {
+      "main": [
+        [
+          {
+            "node": "HANDLE_DUPLICATE_SUPPLIER_DECISION",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DETECT_FORNECEDOR_COMPLETE",
             "type": "main",
             "index": 0
           }
