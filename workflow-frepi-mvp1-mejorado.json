@@ -26,7 +26,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Obtener el input\nconst input = $input.first().json;\n\n// FILTRAR: Solo procesar si es un mensaje entrante (no notificaciones de estado)\nif (!input.messages || input.messages.length === 0) {\n  console.log('⏭️ [Extraer Datos] Ignorando notificación de estado:', input.statuses?.[0]?.status);\n  return [];\n}\n\n// Extraer datos del mensaje\nconst phoneNumber = input.messages[0].from;\nconst messageText = input.messages[0].text.body;\nconst userName = input.contacts[0].profile.name;\nconst messageId = input.messages[0].id;\nconst timestamp = input.messages[0].timestamp;\n\nconsole.log('📱 [Extraer Datos] Mensaje recibido de:', phoneNumber);\nconsole.log('💬 [Extraer Datos] Contenido:', messageText);\n\n// Retornar datos limpios\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    message: messageText,\n    user_name: userName,\n    message_id: messageId,\n    timestamp: timestamp,\n    raw_data: input\n  }\n}];"
+        "jsCode": "// Obtener el input\nconst input = $input.first().json;\n\n// FILTRAR: Solo procesar si es un mensaje entrante\nif (!input.messages || input.messages.length === 0) {\n  console.log('⏭️ [Extraer Datos] Ignorando notificación de estado:', input.statuses?.[0]?.status);\n  return [];\n}\n\nconst message = input.messages[0];\nconst phoneNumber = message.from;\nconst userName = input.contacts[0].profile.name;\nconst messageId = message.id;\nconst timestamp = message.timestamp;\n\n// 📎 DETECTAR ARCHIVOS NO SOPORTADOS\nif (message.type !== 'text') {\n  console.log(`📎 [Extraer Datos] Archivo no soportado detectado: ${message.type}`);\n  \n  const unsupportedMessage = `📎 Oi! Percebi que você enviou um arquivo (${message.type}).\n\nPor enquanto, só consigo processar mensagens de texto. 📝\n\n🔜 Em breve vou poder receber fotos de notas fiscais!\n\nDigite \"menu\" para ver as opções disponíveis.`;\n  \n  return [{\n    json: {\n      phone_number: phoneNumber,\n      message: unsupportedMessage,\n      user_name: userName,\n      message_id: messageId,\n      timestamp: timestamp,\n      is_unsupported_file: true,\n      file_type: message.type,\n      output: unsupportedMessage\n    }\n  }];\n}\n\n// Extraer datos del mensaje de texto\nconst messageText = message.text.body;\n\nconsole.log('📱 [Extraer Datos] Mensaje recibido de:', phoneNumber);\nconsole.log('💬 [Extraer Datos] Contenido:', messageText);\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    message: messageText,\n    user_name: userName,\n    message_id: messageId,\n    timestamp: timestamp,\n    is_unsupported_file: false,\n    raw_data: input\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -106,7 +106,7 @@
         "promptType": "define",
         "text": "={{ $json.message }}",
         "options": {
-          "systemMessage": "Você é Frepi, assistente de compras por WhatsApp.\n\n🎯 MISSÃO: Completar o cadastro do restaurante\n\nDADOS A COLETAR (nesta ordem):\n1. Nome do restaurante\n2. Nome da pessoa de contato  \n3. Cidade\n4. Tipo de negócio (Restaurante, Padaria, Cafeteria, Bar, etc.)\n\nREGRAS:\n- UMA pergunta por vez\n- Breve e natural (máximo 2 linhas)\n- Se já cumprimentou antes = NÃO cumprimente de novo\n- Se o usuário der vários dados de uma vez = aceite todos\n- Seja amigável e use tom conversacional de WhatsApp\n\nFORMATO FINAL (quando tiver TODOS os 4 dados):\nCADASTRO_COMPLETO\nNome Restaurante: [nome]\nNome Contato: [nome]\nCidade: [cidade]\nTipo: [tipo]\n\nMuito obrigado! Seu cadastro está completo. 😊\nSempre que precisar, é só chamar!\n\nTOM: Natural, casual, como WhatsApp brasileiro."
+          "systemMessage": "🍽️ Você é Frepi, assistente de compras por WhatsApp!\n\n🎯 MISSÃO: Completar o cadastro do restaurante\n\nPRIMEIRA MENSAGEM (se for novo usuário):\n\"Olá! Prazer em te conhecer! 😊\nSou o Frepi, seu assistente de compras.\n\nAntes de começar, vou precisar de algumas informações básicas.\nQual é o nome do seu restaurante?\"\n\nDADOS A COLETAR (nesta ordem):\n1. Nome do restaurante\n2. Nome da pessoa de contato  \n3. Cidade\n4. Tipo de negócio (Restaurante, Padaria, Cafeteria, Bar, Hotel, etc.)\n\nREGRAS:\n- UMA pergunta por vez\n- Seja natural e amigável (não robotizado!)\n- Se já cumprimentou = NÃO cumprimente de novo\n- Se o usuário der vários dados juntos = aceite todos\n- Use emojis relevantes: 🍽️ 📍 👤\n\nFORMATO FINAL (quando tiver TODOS os 4 dados):\nCADASTRO_COMPLETO\nNome Restaurante: [nome]\nNome Contato: [nome]\nCidade: [cidade]\nTipo: [tipo]\n\n✅ Perfeito! Cadastro completo!\n\nAgora você pode usar o Frepi. Digite \"menu\" para ver as opções disponíveis.\n\nTOM: Natural, casual, brasileiro. Como um amigo prestativo, não um robô."
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -729,7 +729,7 @@
         "promptType": "define",
         "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
         "options": {
-          "systemMessage": "={{ $('Vector Search Products').first().json.products_context }}\n\nIMPORTANTE: Os produtos sugeridos acima estão verificados no nosso catálogo.\n- Se o usuário mencionar algo similar, ofereça primeiro estes produtos\n- Use os nomes EXATOS do catálogo ao confirmar produtos\n- Se nenhum coincidir, pergunte para esclarecer\n\n---\n\nVocê é Frepi, assistente de compras por WhatsApp para restaurantes.\n\nCONTEXTO DA SESSÃO:\nSessão ID: {{ $('Vector Search Products').first().json.session_id }}\nUsuário: {{ $('Vector Search Products').first().json.phone_number }}\n\n🎯 SUA MISSÃO: Ajudar o restaurante a fazer um pedido de produtos\n\nINSTRUÇÕES:\n1. Para cada produto mencionado:\n   - Confirme o nome exato (usando os sugeridos do catálogo se possível)\n   - Pergunte a quantidade\n   - Confirme a unidade (kg, litro, unidade, caixa, etc.)\n\n2. Se há PRODUTOS SUGERIDOS do catálogo:\n   - Primeiro pergunte: \"Você quer algum destes produtos?\"\n   - Se sim: confirme quantidade e unidade\n   - Se não: pergunte o que precisa especificamente\n\n3. Quando tiver pelo menos 1 produto completo com quantidade:\n   - Pergunte: \"Quer adicionar mais produtos?\"\n   - Se não: resuma o pedido e confirme\n\n4. FORMATO FINAL quando pedido estiver completo:\nPEDIDO_COMPLETO\nItens:\n- [produto 1]: [quantidade] [unidad]\n- [producto 2]: [cantidad] [unidad]\nFornecedor preferido: [fornecedor ou 'não especificado']\n\nVou gerar o resumo do seu pedido!\n\nTOM: Natural, breve, amigável como WhatsApp. Máximo 2-3 linhas por resposta."
+          "systemMessage": "{{ $('Vector Search Products').first().json.products_context }}\n\nIMPORTANTE: Os produtos sugeridos acima estão verificados no nosso catálogo.\n\n---\n\n🛒 Você é Frepi, assistente de compras por WhatsApp para restaurantes.\n\nCONTEXTO DA SESSÃO:\nSessão ID: {{ $('Vector Search Products').first().json.session_id }}\nUsuário: {{ $('Vector Search Products').first().json.phone_number }}\n\n🎯 SUA MISSÃO: Ajudar o restaurante a fazer um pedido de produtos\n\nINSTRUÇÕES:\n1. Para cada produto mencionado:\n   - Confirme o nome exato (usando catálogo 📦)\n   - Pergunte a quantidade 🔢\n   - Confirme a unidade (kg, litro, unidade, caixa) 📏\n\n2. Se há PRODUTOS SUGERIDOS do catálogo:\n   - Pergunte: \"Quer algum destes?\" 🤔\n   - Se sim: confirme quantidade\n   - Se não: esclareça o que precisa\n\n3. Quando tiver ≥ 1 produto completo:\n   - Pergunte: \"Quer adicionar mais?\" ➕\n   - Se não: resuma e confirme ✅\n\n4. FORMATO FINAL quando pedido completo:\nPEDIDO_COMPLETO\nItens:\n- [produto 1]: [quantidade] [unidade]\n- [produto 2]: [quantidade] [unidade]\nFornecedor preferido: [fornecedor ou 'não especificado']\n\nVou buscar as melhores opções! 🔍\n\nTOM: Natural, breve, amigável. Máximo 2-3 linhas. Use emojis: 🛒 📦 ✅ 🔢"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -800,7 +800,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        512,
+        736,
         1008
       ],
       "id": "da5847e1-f892-44e4-9927-438bdf8b277b",
@@ -1198,7 +1198,7 @@
         "promptType": "define",
         "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
         "options": {
-          "systemMessage": "Você é Frepi, assistente de compras por WhatsApp.\n\n🎯 MISSÃO: Ajudar o usuário a navegar pelas opções\n\nOPÇÕES DISPONÍVEIS:\n1. 📦 Fazer um pedido\n2. 💰 Subir preços (em breve)\n3. ⚙️ Configurar preferências\n4. ❓ Ajuda\n\nINSTRUÇÕES:\n- Se o usuário disser claramente o que quer (ex: \"quero fazer um pedido\"), execute a ação\n- Se não estiver claro, mostre o menu de opções\n- Seja breve e direto\n- Use emojis para clareza\n\nQUANDO O USUÁRIO ESCOLHER UMA OPÇÃO, responda:\nPara pedido: ACAO_PEDIDO\nPara configuração: ACAO_CONFIGURACAO  \nPara ajuda: Explique as funcionalidades brevemente\n\nTOM: Amigável, eficiente, brasileiro."
+          "systemMessage": "Você é Frepi, assistente de compras.\n\n🎯 MISSÃO: Identificar qual opção do menu o usuário escolheu\n\nMENU DISPONÍVEL:\n1️⃣ Fazer uma compra\n2️⃣ Atualizar preços de fornecedor  \n3️⃣ Registrar/Atualizar fornecedor\n4️⃣ Configurar preferências\n\nINSTRUÇÕES:\n- Se usuário digitar \"1\", \"um\", \"compra\", \"pedido\" → ACAO:FAZER_PEDIDO\n- Se usuário digitar \"2\", \"dois\", \"preços\", \"precos\", \"atualizar\" → ACAO:ENVIAR_PRECOS\n- Se usuário digitar \"3\", \"três\", \"tres\", \"fornecedor\", \"cadastrar\" → ACAO:CADASTRAR_FORNECEDOR\n- Se usuário digitar \"4\", \"quatro\", \"preferências\", \"preferencias\", \"configurar\" → ACAO:CONFIGURAR\n\n- Se não estiver claro, mostre o menu novamente de forma amigável\n\nTOM: Natural, eficiente, brasileiro. Use emojis!"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1251,7 +1251,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('🤖 [Detectar Acción] Output del agente:', agentOutput);\n\nlet accion = 'mostrar_respuesta';\n\nif (agentOutput.includes('ACAO:FAZER_PEDIDO')) {\n  accion = 'hacer_pedido';\n} else if (agentOutput.includes('ACAO:CONFIGURAR')) {\n  accion = 'configurar';\n} else if (agentOutput.includes('ACAO:ENVIAR_PRECOS')) {\n  accion = 'enviar_precos';\n}\n\nlet outputLimpio = agentOutput\n  .replace(/ACAO:FAZER_PEDIDO/g, '')\n  .replace(/ACAO:CONFIGURAR/g, '')\n  .replace(/ACAO:ENVIAR_PRECOS/g, '')\n  .trim();\n\nconsole.log('🎯 [Detectar Acción] Acción detectada:', accion);\n\nreturn [{\n  json: {\n    accion: accion,\n    output: outputLimpio,\n    phone_number: phoneNumber,\n    original_output: agentOutput\n  }\n}];"
+        "jsCode": "const agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('🤖 [Detectar Acción] Output del agente:', agentOutput);\n\nlet accion = 'mostrar_respuesta';\n\nif (agentOutput.includes('ACAO:FAZER_PEDIDO')) {\n  accion = 'hacer_pedido';\n} else if (agentOutput.includes('ACAO:CONFIGURAR')) {\n  accion = 'configurar';\n} else if (agentOutput.includes('ACAO:ENVIAR_PRECOS')) {\n  accion = 'enviar_precos';\n} else if (agentOutput.includes('ACAO:CADASTRAR_FORNECEDOR')) {\n  accion = 'cadastrar_fornecedor';\n}\n\nlet outputLimpio = agentOutput\n  .replace(/ACAO:FAZER_PEDIDO/g, '')\n  .replace(/ACAO:CONFIGURAR/g, '')\n  .replace(/ACAO:ENVIAR_PRECOS/g, '')\n  .replace(/ACAO:CADASTRAR_FORNECEDOR/g, '')\n  .trim();\n\nconsole.log('🎯 [Detectar Acción] Acción detectada:', accion);\n\nreturn [{\n  json: {\n    accion: accion,\n    output: outputLimpio,\n    phone_number: phoneNumber,\n    original_output: agentOutput\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1265,7 +1265,7 @@
     {
       "parameters": {
         "mode": "expression",
-        "output": "=Output (0): {{ $json.accion === 'hacer_pedido' }}\nOutput (1): {{ $json.accion === 'configurar' }}\nOutput (2): {{ $json.accion === 'enviar_precos' }}\nOutput (3): {{ $json.accion === 'mostrar_respuesta' }}"
+        "output": "=Output (0): {{ $json.accion === 'hacer_pedido' }}\nOutput (1): {{ $json.accion === 'configurar' }}\nOutput (2): {{ $json.accion === 'enviar_precos' }}\nOutput (3): {{ $json.accion === 'cadastrar_fornecedor' }}\nOutput (4): {{ $json.accion === 'mostrar_respuesta' }}"
       },
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.3,
@@ -1444,7 +1444,7 @@
         "promptType": "define",
         "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
         "options": {
-          "systemMessage": "Você é Frepi, assistente de compras especializado em cadastrar preços.\n\n🎯 MISSÃO: Receber e cadastrar listas de preços dos fornecedores\n\nO QUE VOCÊ PRECISA EXTRAIR DE CADA PRODUTO:\n1. Nome do produto\n2. Fornecedor\n3. Preço (valor numérico)\n4. Unidade (kg, litro, unidade, caixa, etc.)\n\nINSTRUÇÕES:\n- Aceite listas em QUALQUER formato (texto corrido, linhas, etc.)\n- Se algo não estiver claro, pergunte especificamente o que falta\n- Seja flexível: aceite \"Leite Piracanjuba R$ 4,50/L\" como válido\n- Sempre confirme TODOS os dados antes de finalizar\n\nFORMATO FINAL (quando tiver TODOS os dados confirmados):\nPRECOS_CONFIRMADOS\n[\n  {\n    \"produto\": \"nome do produto\",\n    \"fornecedor\": \"nome fornecedor\",\n    \"preco\": 10.50,\n    \"unidade\": \"kg\"\n  },\n  ...\n]\n\nPronto! Preços cadastrados com sucesso! ✅\n\nTOM: Eficiente, claro, profissional. Máximo 3 linhas por resposta.\n\nSE O USUÁRIO ENVIAR ALGO CONFUSO: Peça educadamente para esclarecer apenas o que está faltando."
+          "systemMessage": "💰 Você é Frepi, especialista em cadastrar preços.\n\n🎯 MISSÃO: Receber e cadastrar listas de preços dos fornecedores\n\nO QUE VOCÊ PRECISA EXTRAIR:\nPara cada produto:\n1. Nome do produto\n2. Fornecedor\n3. Preço (valor numérico)\n4. Unidade (kg, litro, unidade, caixa, etc.)\n\n📝 FORMATOS ACEITOS:\n\nFORMATO A (Texto livre):\n\"Leite Piracanjuba 4.50/L\nArroz Tio João 5.20/kg\nFeijão Camil 6.80/kg\"\n\nFORMATO B (Estruturado):\n\"Fornecedor: Piracanjuba\n- Leite 4.50/L\n- Queijo 18.00/kg\n\nFornecedor: Tio João\n- Arroz 5.20/kg\"\n\nINSTRUÇÕES:\n- Aceite QUALQUER formato de lista\n- Se algo não estiver claro, pergunte APENAS o que falta\n- Seja flexível com formatação\n- Use emojis: 💰 📦 ✅ ⚠️\n- SEMPRE confirme TODOS os dados antes de finalizar\n\nFORMATO FINAL (quando tiver TODOS os dados confirmados):\nPRECOS_CONFIRMADOS\n[\n  {\n    \"produto\": \"Leite Integral\",\n    \"fornecedor\": \"Piracanjuba\",\n    \"preco\": 4.50,\n    \"unidade\": \"litro\"\n  },\n  {\n    \"produto\": \"Arroz Branco\",\n    \"fornecedor\": \"Tio João\",\n    \"preco\": 5.20,\n    \"unidade\": \"kg\"\n  }\n]\n\n✅ Pronto! Preços cadastrados com sucesso!\n\nTOM: Eficiente, claro, amigável. Máximo 3 linhas. Use emojis!\n\nSE USUÁRIO ENVIAR ALGO CONFUSO: \n\"⚠️ Não entendi bem. Pode me enviar no formato:\nProduto Fornecedor Preço/Unidade\n\nExemplo: Leite Piracanjuba 4.50/L\""
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1639,6 +1639,376 @@
       ],
       "id": "GENERATE_RECOMMENDATION",
       "name": "Generar Recomendación"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 📊 Calcular % de preferencias completadas\nconst usuario = $input.first().json;\n\nconsole.log('📊 [Calcular %] Verificando preferencias del restaurante');\n\n// Obtener datos del restaurante\nconst restaurantId = usuario.restaurant_id;\n\nlet camposCompletados = 0;\nconst totalCampos = 5;\n\ntry {\n  const { data: restaurant } = await $supabase\n    .from('restaurants')\n    .select('category_preferences, preferred_suppliers, ordering_frequency, monthly_spend_avg, payment_terms')\n    .eq('id', restaurantId)\n    .single();\n  \n  if (!restaurant) {\n    console.log('⚠️ [Calcular %] Restaurante no encontrado');\n    return [{\n      json: {\n        ...usuario,\n        preferencias_porcentaje: 0,\n        is_menu_interaction: false\n      }\n    }];\n  }\n  \n  // Verificar cada campo\n  if (restaurant.category_preferences && Object.keys(restaurant.category_preferences).length > 0) {\n    camposCompletados++;\n  }\n  if (restaurant.preferred_suppliers && restaurant.preferred_suppliers.length > 0) {\n    camposCompletados++;\n  }\n  if (restaurant.ordering_frequency) {\n    camposCompletados++;\n  }\n  if (restaurant.monthly_spend_avg && restaurant.monthly_spend_avg > 0) {\n    camposCompletados++;\n  }\n  if (restaurant.payment_terms) {\n    camposCompletados++;\n  }\n  \n  const porcentaje = Math.round((camposCompletados / totalCampos) * 100);\n  \n  console.log(`📊 [Calcular %] ${camposCompletados}/${totalCampos} completados = ${porcentaje}%`);\n  \n  return [{\n    json: {\n      ...usuario,\n      preferencias_porcentaje: porcentaje,\n      campos_completados: camposCompletados,\n      total_campos: totalCampos,\n      is_menu_interaction: false\n    }\n  }];\n  \n} catch (error) {\n  console.error('❌ [Calcular %] Error:', error);\n  return [{\n    json: {\n      ...usuario,\n      preferencias_porcentaje: 0,\n      is_menu_interaction: false\n    }\n  }];\n}",
+        "credentials": {
+          "supabaseApi": {
+            "id": "YaSYB0r907WCaDZK",
+            "name": "Frepi Supabase"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        1008
+      ],
+      "id": "CALC_PREFERENCES_PERCENT",
+      "name": "Calcular % Preferencias"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🍽️ Generar Menú Principal con % dinámico\nconst usuario = $input.first().json;\nconst porcentaje = usuario.preferencias_porcentaje || 0;\nconst phoneNumber = usuario.whatsapp_number;\n\nconsole.log(`🍽️ [Menu Principal] Generando para ${usuario.first_name}, preferencias: ${porcentaje}%`);\n\nconst menuText = `🍽️ *Bem-vindo ao Frepi!*\n\nEscolha uma opção:\n\n1️⃣ Fazer uma compra\n2️⃣ Atualizar preços de fornecedor\n3️⃣ Registrar/Atualizar fornecedor\n4️⃣ Configurar preferências (${porcentaje}%)\n\nDigite o número da opção desejada.`;\n\nreturn [{\n  json: {\n    output: menuText,\n    phone_number: phoneNumber,\n    user_data: usuario,\n    is_menu: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        880
+      ],
+      "id": "GENERATE_MAIN_MENU",
+      "name": "Generar Menú Principal"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "CHECK_UNSUPPORTED",
+              "leftValue": "={{ $json.is_unsupported_file }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -896,
+        640
+      ],
+      "id": "CHECK_UNSUPPORTED_FILE",
+      "name": "¿Archivo No Soportado?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🔍 Validar disponibilidad de precios antes de procesar pedido\nconst productos = $input.first().json.produtos;\nconst restaurantId = $input.first().json.restaurant_id;\nconst phoneNumber = $input.first().json.phone_number;\n\nconsole.log(`🔍 [Validar Precios] Verificando ${productos.length} productos`);\n\nconst resultados = [];\nlet hayProblemas = false;\n\nfor (const producto of productos) {\n  try {\n    // Buscar producto en master_list\n    const { data: masterProducts } = await $supabase\n      .from('master_list')\n      .select('id, product_name')\n      .ilike('product_name', `%${producto.produto}%`)\n      .limit(1);\n    \n    if (!masterProducts || masterProducts.length === 0) {\n      resultados.push({\n        produto: producto.produto,\n        problema: 'no_encontrado',\n        mensaje: `Produto \"${produto.produto}\" não encontrado no catálogo`\n      });\n      hayProblemas = true;\n      console.log(`⚠️ Produto no encontrado: ${produto.produto}`);\n      continue;\n    }\n    \n    const masterListId = masterProducts[0].id;\n    \n    // Verificar precios recientes (< 30 días)\n    const fechaLimite = new Date();\n    fechaLimite.setDate(fechaLimite.getDate() - 30);\n    \n    const { data: recentPrices, error } = await $supabase\n      .from('pricing_history')\n      .select('id, supplier_id, unit_price, effective_date, suppliers(company_name)')\n      .eq('master_list_id', masterListId)\n      .gte('effective_date', fechaLimite.toISOString())\n      .order('effective_date', { ascending: false })\n      .limit(5);\n    \n    if (!recentPrices || recentPrices.length === 0) {\n      // Buscar el precio más reciente aunque sea antiguo\n      const { data: oldestPrice } = await $supabase\n        .from('pricing_history')\n        .select('effective_date, suppliers(company_name)')\n        .eq('master_list_id', masterListId)\n        .order('effective_date', { ascending: false })\n        .limit(1)\n        .single();\n      \n      if (oldestPrice) {\n        const diasAtras = Math.floor((Date.now() - new Date(oldestPrice.effective_date)) / (1000 * 60 * 60 * 24));\n        resultados.push({\n          produto: produto.produto,\n          problema: 'precos_desatualizados',\n          dias_atras: diasAtras,\n          ultimo_fornecedor: oldestPrice.suppliers?.company_name,\n          mensaje: `Preços desatualizados (há ${diasAtras} dias)`\n        });\n        hayProblemas = true;\n        console.log(`⚠️ Preços antigos para ${produto.produto}: ${diasAtras} días`);\n      } else {\n        resultados.push({\n          produto: produto.produto,\n          problema: 'sin_precios',\n          mensaje: 'Sem preços cadastrados'\n        });\n        hayProblemas = true;\n        console.log(`⚠️ Sin precios: ${produto.produto}`);\n      }\n    } else {\n      resultados.push({\n        produto: produto.produto,\n        problema: null,\n        precos_encontrados: recentPrices.length,\n        mensaje: `✅ ${recentPrices.length} preços atualizados`\n      });\n      console.log(`✅ Preços OK para ${produto.produto}: ${recentPrices.length} opciones`);\n    }\n    \n  } catch (error) {\n    console.error(`❌ Error validando ${producto.produto}:`, error);\n    resultados.push({\n      produto: producto.produto,\n      problema: 'erro',\n      mensaje: 'Erro ao verificar preços'\n    });\n    hayProblemas = true;\n  }\n}\n\nconsole.log(`🔍 [Validar Precios] Problemas detectados: ${hayProblemas}`);\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    restaurant_id: restaurantId,\n    produtos: productos,\n    validacion: resultados,\n    hay_problemas: hayProblemas,\n    puede_continuar: true  // Opción B: siempre permitir\n  }\n}];",
+        "credentials": {
+          "supabaseApi": {
+            "id": "YaSYB0r907WCaDZK",
+            "name": "Frepi Supabase"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3088,
+        440
+      ],
+      "id": "VALIDATE_PRICES_AVAILABILITY",
+      "name": "Validar Disponibilidad Precios"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ⚠️ Generar mensaje de aviso sobre problemas\nconst validacion = $input.first().json.validacion;\nconst hayProblemas = $input.first().json.hay_problemas;\n\nif (!hayProblemas) {\n  // Sin problemas, continuar normal\n  return [{\n    json: {\n      ...$input.first().json,\n      mensaje_aviso: null,\n      continuar_busqueda: true\n    }\n  }];\n}\n\nconsole.log('⚠️ [Generar Aviso] Creando mensaje sobre problemas detectados');\n\nlet mensaje = '⚠️ *AVISO - Análise do Pedido*\\n\\n';\n\nconst sinPrecios = validacion.filter(v => v.problema === 'sin_precios');\nconst desactualizados = validacion.filter(v => v.problema === 'precos_desatualizados');\nconst noEncontrados = validacion.filter(v => v.problema === 'no_encontrado');\n\nif (noEncontrados.length > 0) {\n  mensaje += '❌ *Produtos não encontrados:*\\n';\n  noEncontrados.forEach(v => {\n    mensaje += `   • ${v.produto}\\n`;\n  });\n  mensaje += '\\n';\n}\n\nif (sinPrecios.length > 0) {\n  mensaje += '📭 *Sem preços cadastrados:*\\n';\n  sinPrecios.forEach(v => {\n    mensaje += `   • ${v.produto}\\n`;\n  });\n  mensaje += '\\n';\n}\n\nif (desactualizados.length > 0) {\n  mensaje += '⏰ *Preços desatualizados:*\\n';\n  desactualizados.forEach(v => {\n    mensaje += `   • ${v.produto} (há ${v.dias_atras} dias`;\n    if (v.ultimo_fornecedor) {\n      mensaje += ` - ${v.ultimo_fornecedor}`;\n    }\n    mensaje += ')\\n';\n  });\n  mensaje += '\\n';\n}\n\nmensaje += '━━━━━━━━━━━━━━━━\\n';\nmensaje += '*Opções:*\\n';\nmensaje += '1️⃣ Continuar mesmo assim\\n';\nmensaje += '2️⃣ Atualizar preços primeiro (digite \"2\")\\n\\n';\nmensaje += 'O que prefere?';\n\nreturn [{\n  json: {\n    ...$input.first().json,\n    mensaje_aviso: mensaje,\n    continuar_busqueda: false,\n    necessita_resposta_usuario: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3328,
+        440
+      ],
+      "id": "GENERATE_WARNING_MESSAGE",
+      "name": "Generar Mensaje Aviso"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "CHECK_PROBLEMS",
+              "leftValue": "={{ $json.hay_problemas }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3568,
+        440
+      ],
+      "id": "DECIDE_SHOW_WARNING",
+      "name": "¿Mostrar Aviso?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ⚙️ Generar Submenú de Preferencias\nconst usuario = $input.first().json;\nconst porcentaje = usuario.preferencias_porcentaje || 0;\nconst phoneNumber = usuario.whatsapp_number;\n\nconsole.log(`⚙️ [Submenú Pref] Generando para ${usuario.first_name}, ${porcentaje}% completo`);\n\nconst submenu = `⚙️ *PREFERÊNCIAS* (${porcentaje}% completo)\n\nEscolha o que deseja configurar:\n\n1️⃣ Produtos frequentes\n2️⃣ Fornecedores preferidos\n3️⃣ Frequência de compras\n4️⃣ Orçamento mensal\n5️⃣ Condições de pagamento\n6️⃣ Voltar ao menu principal\n\nDigite o número da opção.`;\n\nreturn [{\n  json: {\n    output: submenu,\n    phone_number: phoneNumber,\n    user_data: usuario,\n    is_preferences_menu: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        944
+      ],
+      "id": "GENERATE_PREFERENCES_SUBMENU",
+      "name": "Generar Submenú Preferencias"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🔍 Detectar qué opción del submenú eligió\nconst mensaje = $('Extraer Datos WhatsApp').first().json.message.toLowerCase().trim();\nconst usuario = $input.first().json.user_data;\n\nconsole.log('🔍 [Detectar Opción Pref] Mensaje:', mensaje);\n\nlet opcion = null;\n\nif (mensaje.includes('1') || mensaje.includes('produto') || mensaje.includes('frequente')) {\n  opcion = 'productos_frequentes';\n} else if (mensaje.includes('2') || mensaje.includes('fornecedor')) {\n  opcion = 'fornecedores_preferidos';\n} else if (mensaje.includes('3') || mensaje.includes('frequencia') || mensaje.includes('frequência')) {\n  opcion = 'frequencia_compras';\n} else if (mensaje.includes('4') || mensaje.includes('orçamento') || mensaje.includes('orcamento')) {\n  opcion = 'orcamento_mensal';\n} else if (mensaje.includes('5') || mensaje.includes('pagamento')) {\n  opcion = 'condicoes_pagamento';\n} else if (mensaje.includes('6') || mensaje.includes('voltar') || mensaje.includes('menu')) {\n  opcion = 'voltar_menu';\n} else {\n  opcion = 'mostrar_submenu';\n}\n\nconsole.log(`🔍 [Detectar Opción Pref] Opción: ${opcion}`);\n\nreturn [{\n  json: {\n    opcion_preferencia: opcion,\n    user_data: usuario,\n    phone_number: usuario.whatsapp_number\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2272,
+        944
+      ],
+      "id": "DETECT_PREFERENCE_OPTION",
+      "name": "Detectar Opción Preferencia"
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "output": "=Output (0): {{ $json.opcion_preferencia === 'productos_frequentes' }}\nOutput (1): {{ $json.opcion_preferencia === 'fornecedores_preferidos' }}\nOutput (2): {{ $json.opcion_preferencia === 'frequencia_compras' }}\nOutput (3): {{ $json.opcion_preferencia === 'orcamento_mensal' }}\nOutput (4): {{ $json.opcion_preferencia === 'condicoes_pagamento' }}\nOutput (5): {{ $json.opcion_preferencia === 'voltar_menu' }}\nOutput (6): {{ $json.opcion_preferencia === 'mostrar_submenu' }}"
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        2496,
+        944
+      ],
+      "id": "ROUTER_PREFERENCES",
+      "name": "Router Preferencias"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
+        "options": {
+          "systemMessage": "🛒 Você é Frepi, configurando produtos frequentes.\n\n🎯 MISSÃO: Identificar quais produtos o restaurante compra com frequência\n\nPERGUNTAS:\n\"Quais produtos você compra com mais frequência? \n\nPor exemplo: leite, arroz, feijão, óleo, etc.\"\n\nSe o usuário listar produtos, confirme:\n\"Perfeito! Vou registrar:\n• [Produto 1]\n• [Produto 2]\n• [Produto 3]\n\nEstá correto?\"\n\nFORMATO FINAL (quando confirmar):\nPRODUTOS_CONFIGURADOS\nProdutos: [lista separada por comas]\n\n✅ Produtos frequentes atualizados!\n\nTOM: Amigável, eficiente. Use emojis: 🛒 ✅"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2720,
+        800
+      ],
+      "id": "AGENT_CONFIG_PRODUTOS",
+      "name": "Agente Config Produtos",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "OpenAI Config Produtos",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "Memory Config Produtos",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2736,
+        1024
+      ],
+      "id": "LLM_CONFIG_PRODUTOS",
+      "name": "OpenAI Config Produtos",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}_produtos",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2864,
+        1024
+      ],
+      "id": "MEMORY_CONFIG_PRODUTOS",
+      "name": "Memory Config Produtos"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
+        "options": {
+          "systemMessage": "📦 Você é Frepi, especialista em cadastrar fornecedores.\n\n🎯 MISSÃO: Cadastrar ou atualizar dados de um fornecedor\n\nDADOS NECESSÁRIOS:\n1. Nome do fornecedor\n2. Telefone/WhatsApp\n3. Dias de entrega (ex: Segunda e Quarta, Diário, etc.)\n4. Produtos que fornece (lista)\n\nPERGUNTAS (uma por vez):\n\"Qual é o nome do fornecedor?\"\n\"Qual é o telefone/WhatsApp dele?\"\n\"Quais dias ele faz entregas?\"\n\"Quais produtos ele fornece?\"\n\nFORMATO FINAL (quando tiver TODOS):\nFORNECEDOR_CADASTRADO\nNome: [nome]\nTelefone: [telefone]\nDias: [dias]\nProdutos: [produto1, produto2, ...]\n\n✅ Fornecedor cadastrado com sucesso!\n\nTOM: Profissional, eficiente. Use emojis: 📦 📞 📅 ✅"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2048,
+        336
+      ],
+      "id": "AGENT_REGISTER_FORNECEDOR",
+      "name": "Agente Registrar Fornecedor"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2064,
+        560
+      ],
+      "id": "LLM_REGISTER_FORNECEDOR",
+      "name": "OpenAI Register Fornecedor",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}_fornecedor",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2192,
+        560
+      ],
+      "id": "MEMORY_REGISTER_FORNECEDOR",
+      "name": "Memory Register Fornecedor"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🔍 Detectar si cadastro de fornecedor está completo\nconst agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('🔍 [Detect Fornecedor] Analizando output');\n\nconst isComplete = agentOutput.includes('FORNECEDOR_CADASTRADO');\n\nlet dadosFornecedor = {\n  nome: null,\n  telefone: null,\n  dias: null,\n  produtos: []\n};\n\nif (isComplete) {\n  try {\n    const lines = agentOutput.split('\\n');\n    for (const line of lines) {\n      if (line.includes('Nome:')) {\n        dadosFornecedor.nome = line.split(':')[1].trim();\n      }\n      if (line.includes('Telefone:')) {\n        dadosFornecedor.telefone = line.split(':')[1].trim();\n      }\n      if (line.includes('Dias:')) {\n        dadosFornecedor.dias = line.split(':')[1].trim();\n      }\n      if (line.includes('Produtos:')) {\n        const produtosStr = line.split(':')[1].trim();\n        dadosFornecedor.produtos = produtosStr.split(',').map(p => p.trim());\n      }\n    }\n    console.log('✅ [Detect Fornecedor] Datos extraídos:', dadosFornecedor);\n  } catch (error) {\n    console.error('❌ [Detect Fornecedor] Error parsing:', error);\n  }\n}\n\nconst outputLimpio = agentOutput\n  .replace(/FORNECEDOR_CADASTRADO/g, '')\n  .replace(/Nome:.*\\n/g, '')\n  .replace(/Telefone:.*\\n/g, '')\n  .replace(/Dias:.*\\n/g, '')\n  .replace(/Produtos:.*\\n/g, '')\n  .trim();\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    cadastro_completo: isComplete,\n    dados_fornecedor: dadosFornecedor,\n    output: outputLimpio || agentOutput\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        336
+      ],
+      "id": "DETECT_FORNECEDOR_COMPLETE",
+      "name": "Detectar Fornecedor Completo"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 💾 Guardar fornecedor y productos en Supabase\nconst datos = $input.first().json.dados_fornecedor;\nconst phoneNumber = $input.first().json.phone_number;\n\nconsole.log('💾 [Guardar Fornecedor] Guardando:', datos.nome);\n\ntry {\n  // 1. Guardar/Actualizar fornecedor\n  const { data: existingSupplier } = await $supabase\n    .from('suppliers')\n    .select('id')\n    .ilike('company_name', datos.nome)\n    .single();\n  \n  let supplierId;\n  \n  if (existingSupplier) {\n    // Actualizar\n    await $supabase\n      .from('suppliers')\n      .update({\n        whatsapp_number: datos.telefone,\n        delivery_days: { dias: datos.dias },\n        updated_at: new Date().toISOString()\n      })\n      .eq('id', existingSupplier.id);\n    \n    supplierId = existingSupplier.id;\n    console.log('✅ Fornecedor actualizado:', supplierId);\n  } else {\n    // Crear nuevo\n    const { data: newSupplier } = await $supabase\n      .from('suppliers')\n      .insert({\n        company_name: datos.nome,\n        whatsapp_number: datos.telefone,\n        delivery_days: { dias: datos.dias },\n        is_active: true,\n        created_at: new Date().toISOString()\n      })\n      .select('id')\n      .single();\n    \n    supplierId = newSupplier.id;\n    console.log('✅ Novo fornecedor criado:', supplierId);\n  }\n  \n  // 2. Guardar productos del fornecedor\n  for (const producto of datos.produtos) {\n    // Buscar en master_list\n    const { data: masterProduct } = await $supabase\n      .from('master_list')\n      .select('id')\n      .ilike('product_name', `%${producto}%`)\n      .limit(1)\n      .single();\n    \n    const masterListId = masterProduct?.id || null;\n    \n    // Crear en supplier_mapped_products\n    await $supabase\n      .from('supplier_mapped_products')\n      .insert({\n        supplier_id: supplierId,\n        master_list_id: masterListId,\n        supplier_product_name: producto,\n        current_unit_price: 0,\n        currency: 'BRL',\n        mapping_confidence: masterListId ? 0.8 : 0.5,\n        mapping_method: 'user_input',\n        is_active: true,\n        created_at: new Date().toISOString()\n      });\n    \n    console.log(`✅ Produto vinculado: ${producto}`);\n  }\n  \n  return [{\n    json: {\n      output: `✅ Fornecedor *${datos.nome}* cadastrado com sucesso!\\n\\n${datos.produtos.length} produtos vinculados.`,\n      phone_number: phoneNumber,\n      supplier_id: supplierId\n    }\n  }];\n  \n} catch (error) {\n  console.error('❌ [Guardar Fornecedor] Error:', error);\n  return [{\n    json: {\n      output: `❌ Erro ao cadastrar fornecedor. Tente novamente.`,\n      phone_number: phoneNumber,\n      error: error.message\n    }\n  }];\n}",
+        "credentials": {
+          "supabaseApi": {
+            "id": "YaSYB0r907WCaDZK",
+            "name": "Frepi Supabase"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        240
+      ],
+      "id": "SAVE_FORNECEDOR_DB",
+      "name": "Guardar Fornecedor BD"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "FORNECEDOR_COMPLETE",
+              "leftValue": "={{ $json.cadastro_completo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2560,
+        336
+      ],
+      "id": "IF_FORNECEDOR_COMPLETE",
+      "name": "¿Fornecedor Completo?"
     }
   ],
   "pinData": {},
@@ -1658,7 +2028,7 @@
       "main": [
         [
           {
-            "node": "Buscar Usuario",
+            "node": "¿Archivo No Soportado?",
             "type": "main",
             "index": 0
           }
@@ -1680,7 +2050,7 @@
       "main": [
         [
           {
-            "node": "Verificar Setup Completo",
+            "node": "Calcular % Preferencias",
             "type": "main",
             "index": 0
           }
@@ -2274,7 +2644,7 @@
         ],
         [
           {
-            "node": "Crear Sesión de Setup",
+            "node": "GENERATE_PREFERENCES_SUBMENU",
             "type": "main",
             "index": 0
           }
@@ -2282,6 +2652,13 @@
         [
           {
             "node": "Preparar Datos Subir Precios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AGENT_REGISTER_FORNECEDOR",
             "type": "main",
             "index": 0
           }
@@ -2427,7 +2804,7 @@
       "main": [
         [
           {
-            "node": "Buscar Precios Todos Proveedores",
+            "node": "Validar Disponibilidad Precios",
             "type": "main",
             "index": 0
           }
@@ -2453,6 +2830,267 @@
       ]
     },
     "Generar Recomendación": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular % Preferencias": {
+      "main": [
+        [
+          {
+            "node": "Verificar Setup Completo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Archivo No Soportado?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Disponibilidad Precios": {
+      "main": [
+        [
+          {
+            "node": "Generar Mensaje Aviso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Mensaje Aviso": {
+      "main": [
+        [
+          {
+            "node": "¿Mostrar Aviso?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Mostrar Aviso?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Precios Todos Proveedores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGENT_CONFIG_PRODUTOS": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGENT_REGISTER_FORNECEDOR": {
+      "main": [
+        [
+          {
+            "node": "DETECT_FORNECEDOR_COMPLETE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Register Fornecedor": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AGENT_REGISTER_FORNECEDOR",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory Register Fornecedor": {
+      "ai_memory": [
+        [
+          {
+            "node": "AGENT_REGISTER_FORNECEDOR",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DETECT_FORNECEDOR_COMPLETE": {
+      "main": [
+        [
+          {
+            "node": "IF_FORNECEDOR_COMPLETE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_FORNECEDOR_COMPLETE": {
+      "main": [
+        [
+          {
+            "node": "SAVE_FORNECEDOR_DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SAVE_FORNECEDOR_DB": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GENERATE_PREFERENCES_SUBMENU": {
+      "main": [
+        [
+          {
+            "node": "DETECT_PREFERENCE_OPTION",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DETECT_PREFERENCE_OPTION": {
+      "main": [
+        [
+          {
+            "node": "ROUTER_PREFERENCES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ROUTER_PREFERENCES": {
+      "main": [
+        [
+          {
+            "node": "AGENT_CONFIG_PRODUTOS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GENERATE_MAIN_MENU",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GENERATE_MAIN_MENU",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GENERATE_MAIN_MENU",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GENERATE_MAIN_MENU",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GENERATE_MAIN_MENU",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GENERATE_PREFERENCES_SUBMENU",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Config Produtos": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AGENT_CONFIG_PRODUTOS",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory Config Produtos": {
+      "ai_memory": [
+        [
+          {
+            "node": "AGENT_CONFIG_PRODUTOS",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GENERATE_MAIN_MENU": {
       "main": [
         [
           {
