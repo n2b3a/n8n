@@ -2062,28 +2062,14 @@
       "id": "ROUTER_DUPLICATE_DECISION",
       "name": "Router: ¿Es Decisión Duplicado?",
       "type": "n8n-nodes-base.switch",
-      "typeVersion": 3,
+      "typeVersion": 3.3,
       "position": [
         1700,
         2528
       ],
       "parameters": {
-        "rules": {
-          "rules": [
-            {
-              "conditions": {
-                "boolean": [
-                  {
-                    "value1": "={{ $json.is_duplicate_decision }}",
-                    "value2": true
-                  }
-                ]
-              },
-              "renameOutput": false
-            }
-          ]
-        },
-        "options": {}
+        "mode": "expression",
+        "output": "=Output (0): {{ $json.is_duplicate_decision === true }}\nOutput (1): {{ $json.is_duplicate_decision === false || $json.is_duplicate_decision === undefined }}"
       }
     }
   ],
