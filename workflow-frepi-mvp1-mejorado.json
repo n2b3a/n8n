@@ -729,7 +729,7 @@
         "promptType": "define",
         "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
         "options": {
-          "systemMessage": "{{ $('Vector Search Products').first().json.products_context }}\n\nIMPORTANTE: Os produtos sugeridos acima estão verificados no nosso catálogo.\n\n---\n\n🛒 Você é Frepi, assistente de compras por WhatsApp para restaurantes.\n\nCONTEXTO DA SESSÃO:\nSessão ID: {{ $('Vector Search Products').first().json.session_id }}\nUsuário: {{ $('Vector Search Products').first().json.phone_number }}\n\n🎯 SUA MISSÃO: Ajudar o restaurante a fazer um pedido de produtos\n\n⚠️ *IMPORTANTE*:\nVocê NÃO envia pedidos automaticamente aos fornecedores.\nVocê APENAS recomenda as melhores opções baseado nos preços cadastrados.\nO restaurante fará o pedido DIRETAMENTE com os fornecedores escolhidos.\n\nINSTRUÇÕES:\n1. Para cada produto mencionado:\n   - Confirme o nome exato (usando catálogo 📦)\n   - Pergunte a quantidade 🔢\n   - Confirme a unidade (kg, litro, unidade, caixa) 📏\n\n2. Se há PRODUTOS SUGERIDOS do catálogo:\n   - Pergunte: \"Quer algum destes?\" 🤔\n   - Se sim: confirme quantidade\n   - Se não: esclareça o que precisa\n\n3. Quando tiver ≥ 1 produto completo:\n   - Pergunte: \"Quer adicionar mais?\" ➕\n   - Se não: resuma e confirme ✅\n\n4. FORMATO FINAL quando pedido completo:\nPEDIDO_COMPLETO\nItens:\n- [produto 1]: [quantidade] [unidade]\n- [produto 2]: [quantidade] [unidade]\nFornecedor preferido: [fornecedor ou 'não especificado']\n\nVou buscar as melhores opções! 🔍\n\nTOM: Natural, breve, amigável. Máximo 2-3 linhas. Use emojis: 🛒 📦 ✅ 🔢"
+          "systemMessage": "🎯 VOCÊ É: Um assistente de procurement dedicado e experiente.\nComo um funcionário de confiança ajudando seu chefe a fazer as melhores compras.\n\nSUA ATITUDE:\n- 💡 Proativo: Sugira produtos relacionados que podem estar faltando\n- 👀 Atento: Lembre do histórico de compras se disponível\n- 🎓 Consultivo: Explique POR QUÊ está recomendando cada fornecedor\n- ⚡ Eficiente: Vá direto ao ponto, sem ser robótico\n- 🤝 Amigável: Fale como um colega brasileiro experiente\n\n---\n\n{{ $('Vector Search Products').first().json.products_context }}\n\nIMPORTANTE: Os produtos sugeridos acima estão verificados no nosso catálogo.\n\n---\n\n🛒 Você é Frepi, assistente de compras por WhatsApp para restaurantes.\n\nCONTEXTO DA SESSÃO:\nSessão ID: {{ $('Vector Search Products').first().json.session_id }}\nUsuário: {{ $('Vector Search Products').first().json.phone_number }}\n\n🎯 SUA MISSÃO: Ajudar o restaurante a fazer um pedido de produtos\n\n⚠️ *IMPORTANTE*:\nVocê NÃO envia pedidos automaticamente aos fornecedores.\nVocê APENAS recomenda as melhores opções baseado nos preços cadastrados.\nO restaurante fará o pedido DIRETAMENTE com os fornecedores escolhidos.\n\nINSTRUÇÕES:\n1. Para cada produto mencionado:\n   - Confirme o nome exato (usando catálogo 📦)\n   - Pergunte a quantidade 🔢\n   - Confirme a unidade (kg, litro, unidade, caixa) 📏\n\n2. Se há PRODUTOS SUGERIDOS do catálogo:\n   - Pergunte: \"Quer algum destes?\" 🤔\n   - Se sim: confirme quantidade\n   - Se não: esclareça o que precisa\n\n3. Quando tiver ≥ 1 produto completo:\n   - Pergunte: \"Quer adicionar mais?\" ➕\n   - Se não: resuma e confirme ✅\n\n4. FORMATO FINAL quando pedido completo:\nPEDIDO_COMPLETO\nItens:\n- [produto 1]: [quantidade] [unidade]\n- [produto 2]: [quantidade] [unidade]\nFornecedor preferido: [fornecedor ou 'não especificado']\n\nVou buscar as melhores opções! 🔍\n\nTOM: Natural, breve, amigável. Máximo 2-3 linhas. Use emojis: 🛒 📦 ✅ 🔢"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -795,7 +795,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const usuario = $input.first().json;\n\nconst tienePreferencias = usuario.category_preferences && \n                          Object.keys(usuario.category_preferences).length > 0;\n\nreturn [{\n  json: {\n    ...usuario,\n    setup_completo: tienePreferencias\n  }\n}];"
+        "jsCode": "const usuario = $input.first().json;\n\n// CAMBIO: Siempre permitir acceso al menú\n// Solo calculamos el % de completitud para mostrar\nconst tienePreferencias = usuario.category_preferences &&\n                          Object.keys(usuario.category_preferences).length > 0;\n\nconsole.log(`✅ [Setup Check] Usuario: ${usuario.nome || 'Sin nombre'}`);\nconsole.log(`   Tiene preferencias: ${tienePreferencias}`);\nconsole.log(`   % Completitud: ${usuario.preferencias_porcentaje || 0}%`);\n\nreturn [{\n  json: {\n    ...usuario,\n    setup_completo: true,  // ✅ SIEMPRE true - menú siempre accesible\n    tiene_preferencias: tienePreferencias,  // Flag informativo\n    preferencias_porcentaje: usuario.preferencias_porcentaje || 0\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1444,7 +1444,7 @@
         "promptType": "define",
         "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
         "options": {
-          "systemMessage": "💰 Você é Frepi, especialista em cadastrar preços.\n\n🎯 MISSÃO: Receber e cadastrar listas de preços dos fornecedores\n\nO QUE VOCÊ PRECISA EXTRAIR:\nPara cada produto:\n1. Nome do produto\n2. Fornecedor\n3. Preço (valor numérico)\n4. Unidade (kg, litro, unidade, caixa, etc.)\n\n📝 FORMATOS ACEITOS:\n\nFORMATO A (Texto livre):\n\"Leite Piracanjuba 4.50/L\nArroz Tio João 5.20/kg\nFeijão Camil 6.80/kg\"\n\nFORMATO B (Estruturado):\n\"Fornecedor: Piracanjuba\n- Leite 4.50/L\n- Queijo 18.00/kg\n\nFornecedor: Tio João\n- Arroz 5.20/kg\"\n\nINSTRUÇÕES:\n- Aceite QUALQUER formato de lista\n- Se algo não estiver claro, pergunte APENAS o que falta\n- Seja flexível com formatação\n- Use emojis: 💰 📦 ✅ ⚠️\n- SEMPRE confirme TODOS os dados antes de finalizar\n\nFORMATO FINAL (quando tiver TODOS os dados confirmados):\nPRECOS_CONFIRMADOS\n[\n  {\n    \"produto\": \"Leite Integral\",\n    \"fornecedor\": \"Piracanjuba\",\n    \"preco\": 4.50,\n    \"unidade\": \"litro\"\n  },\n  {\n    \"produto\": \"Arroz Branco\",\n    \"fornecedor\": \"Tio João\",\n    \"preco\": 5.20,\n    \"unidade\": \"kg\"\n  }\n]\n\n✅ Pronto! Preços cadastrados com sucesso!\n\nTOM: Eficiente, claro, amigável. Máximo 3 linhas. Use emojis!\n\nSE USUÁRIO ENVIAR ALGO CONFUSO: \n\"⚠️ Não entendi bem. Pode me enviar no formato:\nProduto Fornecedor Preço/Unidade\n\nExemplo: Leite Piracanjuba 4.50/L\""
+          "systemMessage": "💰 Você é Frepi, especialista em cadastrar preços.\n\n🎯 MISSÃO: Receber e cadastrar listas de preços dos fornecedores\n\nO QUE VOCÊ PRECISA EXTRAIR:\nPara cada produto:\n1. Nome do produto\n2. Fornecedor\n3. Preço (valor numérico)\n4. Unidade (kg, litro, unidade, caixa, etc.)\n\n📝 FORMATOS ACEITOS:\n\nFORMATO A (Texto livre):\n\"Leite Piracanjuba 4.50/L\nArroz Tio João 5.20/kg\nFeijão Camil 6.80/kg\"\n\nFORMATO B (Estruturado):\n\"Fornecedor: Piracanjuba\n- Leite 4.50/L\n- Queijo 18.00/kg\n\nFornecedor: Tio João\n- Arroz 5.20/kg\"\n\nINSTRUÇÕES:\n- Aceite QUALQUER formato de lista\n- Se algo não estiver claro, pergunte APENAS o que falta\n- Seja flexível com formatação\n- Use emojis: 💰 📦 ✅ ⚠️\n- SEMPRE confirme TODOS os dados antes de finalizar\n\n💡 DICA PROATIVA:\nSe o usuário enviar apenas 2-3 produtos, pergunte de forma natural:\n\"Legal! Vi que cadastrou [produtos]. Tem mais produtos desse fornecedor para cadastrar?\"\n\nFORMATO FINAL (quando tiver TODOS os dados confirmados):\nPRECOS_CONFIRMADOS\n[\n  {\n    \"produto\": \"Leite Integral\",\n    \"fornecedor\": \"Piracanjuba\",\n    \"preco\": 4.50,\n    \"unidade\": \"litro\"\n  },\n  {\n    \"produto\": \"Arroz Branco\",\n    \"fornecedor\": \"Tio João\",\n    \"preco\": 5.20,\n    \"unidade\": \"kg\"\n  }\n]\n\n✅ Pronto! Preços cadastrados com sucesso!\n\nTOM: Eficiente, claro, amigável. Máximo 3 linhas. Use emojis!\n\nSE USUÁRIO ENVIAR ALGO CONFUSO: \n\"⚠️ Não entendi bem. Pode me enviar no formato:\nProduto Fornecedor Preço/Unidade\n\nExemplo: Leite Piracanjuba 4.50/L\""
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1629,7 +1629,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const resultados = $input.first().json.resultados;\nconst phoneNumber = $input.first().json.phone_number;\nconst priceSensitivity = $input.first().json.price_sensitivity;\n\nconsole.log('💎 [Generar Recomendación] Creando mensaje para usuario');\n\nlet mensaje = '🎯 *RECOMENDAÇÃO DE COMPRA*\\n\\n';\n\nlet totalEstimado = 0;\nlet fornecedorPrincipal = null;\nconst fornecedoresUsados = new Set();\n\nfor (const item of resultados) {\n  if (item.no_encontrado) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Produto não encontrado no catálogo.\\n\\n`;\n    continue;\n  }\n  \n  if (item.sin_precios) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Sem preços cadastrados.\\n\\n`;\n    continue;\n  }\n  \n  const mejor = item.mejor_opcion;\n  const subtotal = mejor.price * item.quantidade;\n  totalEstimado += subtotal;\n  \n  fornecedoresUsados.add(mejor.supplier_name);\n  \n  mensaje += `✅ *${item.produto}*\\n`;\n  mensaje += `📦 ${item.quantidade} ${item.unidade}\\n`;\n  mensaje += `🏪 *${mejor.supplier_name}*`;\n  if (mejor.is_preferred) mensaje += ' ⭐ (Preferido)';\n  mensaje += `\\n💰 R$ ${mejor.price.toFixed(2)}/${mejor.unit}`;\n  mensaje += ` = *R$ ${subtotal.toFixed(2)}*\\n`;\n  \n  // Mostrar alternativas si hay\n  if (item.opciones.length > 1) {\n    mensaje += `\\n_Outras opções:_\\n`;\n    for (let i = 1; i < Math.min(3, item.opciones.length); i++) {\n      const alt = item.opciones[i];\n      const diff = ((alt.price - mejor.price) / mejor.price * 100).toFixed(0);\n      const signo = diff > 0 ? '+' : '';\n      mensaje += `   • ${alt.supplier_name}: R$ ${alt.price.toFixed(2)} (${signo}${diff}%)\\n`;\n    }\n  }\n  \n  mensaje += '\\n';\n}\n\nmensaje += `━━━━━━━━━━━━━━━━\\n`;\nmensaje += `💵 *TOTAL ESTIMADO: R$ ${totalEstimado.toFixed(2)}*\\n\\n`;\n\nif (fornecedoresUsados.size === 1) {\n  mensaje += `✨ Você pode fazer tudo com *${[...fornecedoresUsados][0]}*!\\n\\n`;\n} else {\n  mensaje += `📋 Fornecedores sugeridos: ${[...fornecedoresUsados].join(', ')}\\n\\n`;\n}\n\n// Explicar criterio\nif (priceSensitivity < 0.4) {\n  mensaje += '💡 _Priorizei menor preço_\\n';\n} else if (priceSensitivity > 0.6) {\n  mensaje += '💡 _Priorizei qualidade e fornecedores preferidos_\\n';\n} else {\n  mensaje += '💡 _Priorizei equilíbrio entre preço e qualidade_\\n';\n}\n\nmensaje += '\\nEsta é uma recomendação. Você precisa fazer o pedido diretamente com os fornecedores? 👍';\n\nconsole.log('✅ [Generar Recomendación] Mensaje creado');\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber,\n    total_estimado: totalEstimado,\n    fornecedores: [...fornecedoresUsados]\n  }\n}];"
+        "jsCode": "const resultados = $input.first().json.resultados;\nconst phoneNumber = $input.first().json.phone_number;\nconst priceSensitivity = $input.first().json.price_sensitivity;\n\nconsole.log('💎 [Generar Recomendación] Creando mensaje para usuario');\n\nlet mensaje = '🎯 *RECOMENDAÇÃO DE COMPRA*\\n\\n';\n\nlet totalEstimado = 0;\nlet fornecedorPrincipal = null;\nconst fornecedoresUsados = new Set();\n\nfor (const item of resultados) {\n  if (item.no_encontrado) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Produto não encontrado no catálogo.\\n\\n`;\n    continue;\n  }\n  \n  if (item.sin_precios) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Sem preços cadastrados.\\n\\n`;\n    continue;\n  }\n  \n  const mejor = item.mejor_opcion;\n  const subtotal = mejor.price * item.quantidade;\n  totalEstimado += subtotal;\n  \n  fornecedoresUsados.add(mejor.supplier_name);\n  \n  mensaje += `✅ *${item.produto}*\\n`;\n  mensaje += `📦 ${item.quantidade} ${item.unidade}\\n`;\n  mensaje += `🏪 *${mejor.supplier_name}*`;\n  if (mejor.is_preferred) mensaje += ' ⭐ (Preferido)';\n  mensaje += `\\n💰 R$ ${mejor.price.toFixed(2)}/${mejor.unit}`;\n  mensaje += ` = *R$ ${subtotal.toFixed(2)}*\\n`;\n  \n  // Mostrar alternativas si hay\n  if (item.opciones.length > 1) {\n    mensaje += `\\n_Outras opções:_\\n`;\n    for (let i = 1; i < Math.min(3, item.opciones.length); i++) {\n      const alt = item.opciones[i];\n      const diff = ((alt.price - mejor.price) / mejor.price * 100).toFixed(0);\n      const signo = diff > 0 ? '+' : '';\n      mensaje += `   • ${alt.supplier_name}: R$ ${alt.price.toFixed(2)} (${signo}${diff}%)\\n`;\n    }\n  }\n  \n  mensaje += '\\n';\n}\n\nmensaje += `━━━━━━━━━━━━━━━━\\n`;\nmensaje += `💵 *TOTAL ESTIMADO: R$ ${totalEstimado.toFixed(2)}*\\n\\n`;\n\nif (fornecedoresUsados.size === 1) {\n  mensaje += `✨ Você pode fazer tudo com *${[...fornecedoresUsados][0]}*!\\n\\n`;\n} else {\n  mensaje += `📋 Fornecedores sugeridos: ${[...fornecedoresUsados].join(', ')}\\n\\n`;\n}\n\n// Explicar criterio\nif (priceSensitivity < 0.4) {\n  mensaje += '💡 _Priorizei menor preço_\\n';\n} else if (priceSensitivity > 0.6) {\n  mensaje += '💡 _Priorizei qualidade e fornecedores preferidos_\\n';\n} else {\n  mensaje += '💡 _Priorizei equilíbrio entre preço e qualidade_\\n';\n}\n\nmensaje += '\\nEsta é uma recomendação. Você precisa fazer o pedido diretamente com os fornecedores? 👍';\n\nconsole.log('✅ [Generar Recomendación] Mensaje creado');\n\n// Agregar nota si hay precios desactualizados\nif (hayProblemas) {\n  mensaje += `\\n\\n⚠️ *Nota Importante*\n\nAlguns preços estão desatualizados (> 30 dias).\nRecomendo atualizar seus preços para recomendações mais precisas.\n\nDigite \"2\" para atualizar preços agora.`;\n}\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber,\n    total_estimado: totalEstimado,\n    fornecedores: [...fornecedoresUsados]\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1661,7 +1661,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 🍽️ Generar Menú Principal con % dinámico\nconst usuario = $input.first().json;\nconst porcentaje = usuario.preferencias_porcentaje || 0;\nconst phoneNumber = usuario.whatsapp_number;\n\nconsole.log(`🍽️ [Menu Principal] Generando para ${usuario.first_name}, preferencias: ${porcentaje}%`);\n\nconst menuText = `🍽️ *Bem-vindo ao Frepi!*\n\nEscolha uma opção:\n\n1️⃣ Fazer uma compra\n2️⃣ Atualizar preços de fornecedor\n3️⃣ Registrar/Atualizar fornecedor\n4️⃣ Configurar preferências (${porcentaje}%)\n\nDigite o número da opção desejada.`;\n\nreturn [{\n  json: {\n    output: menuText,\n    phone_number: phoneNumber,\n    user_data: usuario,\n    is_menu: true\n  }\n}];"
+        "jsCode": "const usuario = $input.first().json;\nconst porcentaje = usuario.preferencias_porcentaje || 0;\nconst phoneNumber = usuario.phone_number || $input.first().json.phone_number;\n\nconsole.log(`📋 [Generar Menú] Usuario: ${usuario.nome || 'Sin nombre'}`);\nconsole.log(`   Preferencias: ${porcentaje}%`);\n\n// Construir advertencia si perfil incompleto\nlet advertencia = '';\nif (porcentaje < 100) {\n  advertencia = `⚠️ *Perfil incompleto (${porcentaje}%)*\n→ Configure preferências para melhores recomendações!\n\n`;\n}\n\nconst menuText = `🍽️ *Bem-vindo ao Frepi!*\n\n${advertencia}Escolha uma opção:\n\n1️⃣ Fazer uma compra\n2️⃣ Atualizar preços de fornecedor\n3️⃣ Registrar/Atualizar fornecedor\n4️⃣ Configurar preferências (${porcentaje}%)${porcentaje < 100 ? ' ⬅️ *Recomendado!*' : ' ✅'}\n\n💬 Você pode digitar o número ou descrever o que precisa.\nExemplo: \"quero fazer uma compra\" ou \"1\"`;\n\nreturn [{\n  json: {\n    output: menuText,\n    phone_number: phoneNumber,\n    user_data: usuario,\n    is_menu: true\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1893,7 +1893,7 @@
         "promptType": "define",
         "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
         "options": {
-          "systemMessage": "📦 Você é Frepi, especialista em cadastrar fornecedores.\n\n🎯 MISSÃO: Cadastrar ou atualizar dados de um fornecedor\n\nDADOS NECESSÁRIOS:\n1. Nome do fornecedor\n2. Telefone/WhatsApp\n3. Dias de entrega (ex: Segunda e Quarta, Diário, etc.)\n4. Produtos que fornece (lista)\n\nPERGUNTAS (uma por vez):\n\"Qual é o nome do fornecedor?\"\n\"Qual é o telefone/WhatsApp dele?\"\n\"Quais dias ele faz entregas?\"\n\"Quais produtos ele fornece?\"\n\nFORMATO FINAL (quando tiver TODOS):\nFORNECEDOR_CADASTRADO\nNome: [nome]\nTelefone: [telefone]\nDias: [dias]\nProdutos: [produto1, produto2, ...]\n\n✅ Fornecedor cadastrado com sucesso!\n\nTOM: Profissional, eficiente. Use emojis: 📦 📞 📅 ✅"
+          "systemMessage": "📦 Você é Frepi, especialista em cadastrar fornecedores.\n\n🎯 MISSÃO: Cadastrar ou atualizar dados de um fornecedor\n\nDADOS NECESSÁRIOS:\n1. Nome do fornecedor\n2. Telefone/WhatsApp\n3. Dias de entrega (ex: Segunda e Quarta, Diário, etc.)\n4. Produtos que fornece (lista)\n\nPERGUNTAS (uma por vez):\n\"Qual é o nome do fornecedor?\"\n\"Qual é o telefone/WhatsApp dele?\"\n\"Quais dias ele faz entregas?\"\n\"Quais produtos ele fornece?\"\n\nFORMATO FINAL (quando tiver TODOS):\nFORNECEDOR_CADASTRADO\nNome: [nome]\nTelefone: [telefone]\nDias: [dias]\nProdutos: [produto1, produto2, ...]\n\n✅ Fornecedor cadastrado com sucesso!\n\n💡 SEJA CONSULTIVO:\nQuando terminar de cadastrar o fornecedor, ofereça ajuda:\n\"Ótimo! Já tem os preços deste fornecedor para cadastrar também?\nPosso te ajudar com isso agora!\"\n\nTOM: Profissional, eficiente. Use emojis: 📦 📞 📅 ✅"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -2070,6 +2070,62 @@
       "parameters": {
         "mode": "expression",
         "output": "=Output (0): {{ $json.is_duplicate_decision === true }}\nOutput (1): {{ $json.is_duplicate_decision === false || $json.is_duplicate_decision === undefined }}"
+      }
+    },
+    {
+      "id": "PREGUNTAR_CONTINUACAO",
+      "name": "Preguntar Continuação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        2728
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const input = $input.first().json;\nconst phoneNumber = input.phone_number;\nconst usuario = input.user_data || input;\n\nconsole.log(`💬 [Continuação] Preguntando al usuario qué más necesita`);\n\nconst mensagemContinuacao = `✅ *Pronto!*\n\n💬 Posso te ajudar com algo mais?\n\n1️⃣ Fazer outra compra\n2️⃣ Atualizar preços\n3️⃣ Registrar fornecedor\n4️⃣ Ver menú principal\n\nDigite o número ou descreva o que precisa.`;\n\nreturn [{\n  json: {\n    output: mensagemContinuacao,\n    phone_number: phoneNumber,\n    user_data: usuario,\n    awaiting_continuation: true\n  }\n}];"
+      }
+    },
+    {
+      "id": "DETECTAR_OPCAO_CONTINUACAO",
+      "name": "Detectar Opção Continuação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        2928
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const mensaje = $input.first().json.message.toLowerCase();\nconst usuario = $input.first().json;\n\nconsole.log(`🔍 [Continuação] Mensaje: \"${mensaje}\"`);\n\n// Opción 1: Fazer outra compra\nif (mensaje.includes('1') ||\n    mensaje.includes('compra') ||\n    mensaje.includes('pedido') ||\n    mensaje.includes('fazer compra') ||\n    mensaje.includes('outra compra')) {\n  console.log('✅ [Continuação] Detectado: FAZER_COMPRA');\n  return [{\n    json: {\n      ...usuario,\n      continuation_action: 'FAZER_COMPRA',\n      output_route: 0\n    }\n  }];\n}\n\n// Opción 2: Atualizar preços\nif (mensaje.includes('2') ||\n    mensaje.includes('preço') ||\n    mensaje.includes('atualizar') ||\n    mensaje.includes('cadastrar preço')) {\n  console.log('✅ [Continuação] Detectado: ATUALIZAR_PRECOS');\n  return [{\n    json: {\n      ...usuario,\n      continuation_action: 'ATUALIZAR_PRECOS',\n      output_route: 1\n    }\n  }];\n}\n\n// Opción 3: Registrar fornecedor\nif (mensaje.includes('3') ||\n    mensaje.includes('fornecedor') ||\n    mensaje.includes('registrar fornecedor')) {\n  console.log('✅ [Continuação] Detectado: REGISTRAR_FORNECEDOR');\n  return [{\n    json: {\n      ...usuario,\n      continuation_action: 'REGISTRAR_FORNECEDOR',\n      output_route: 2\n    }\n  }];\n}\n\n// Opción 4 o por defecto: Ver menú principal\nif (mensaje.includes('4') ||\n    mensaje.includes('menu') ||\n    mensaje.includes('voltar') ||\n    mensaje.includes('não') ||\n    mensaje.includes('nao')) {\n  console.log('✅ [Continuação] Detectado: MOSTRAR_MENU');\n  return [{\n    json: {\n      ...usuario,\n      continuation_action: 'MOSTRAR_MENU',\n      output_route: 3\n    }\n  }];\n}\n\n// Por defecto, volver al menú\nconsole.log('⚠️ [Continuação] Opción no reconocida, volviendo al menú');\nreturn [{\n  json: {\n    ...usuario,\n    continuation_action: 'MOSTRAR_MENU',\n    output_route: 3\n  }\n}];"
+      }
+    },
+    {
+      "id": "ROUTER_CONTINUACAO",
+      "name": "Router Continuação",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        2200,
+        3128
+      ],
+      "parameters": {
+        "mode": "expression",
+        "output": "=Output (0): {{ $json.continuation_action === 'FAZER_COMPRA' }}\nOutput (1): {{ $json.continuation_action === 'ATUALIZAR_PRECOS' }}\nOutput (2): {{ $json.continuation_action === 'REGISTRAR_FORNECEDOR' }}\nOutput (3): {{ $json.continuation_action === 'MOSTRAR_MENU' }}"
+      }
+    },
+    {
+      "id": "MARCAR_SESSAO_COMPLETA",
+      "name": "Marcar Sessão Completa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        3328
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const input = $input.first().json;\nconst sessionId = input.session_id;\n\nconsole.log(`✅ [Marcar Sessão] Marcando sesión como completa: ${sessionId}`);\n\n// Actualizar sesión en Supabase\nif (sessionId) {\n  try {\n    await $supabase\n      .from('line_sessions')\n      .update({\n        session_end: new Date().toISOString(),\n        is_completed: true,\n        last_activity_at: new Date().toISOString()\n      })\n      .eq('session_id', sessionId);\n\n    console.log(`✅ [Marcar Sessão] Sesión ${sessionId} marcada como completa`);\n  } catch (error) {\n    console.error(`❌ [Marcar Sessão] Error: ${error.message}`);\n  }\n}\n\n// Pasar datos al siguiente nodo\nreturn [{\n  json: {\n    ...input,\n    session_completed: true\n  }\n}];"
       }
     }
   ],
@@ -2815,7 +2871,7 @@
       "main": [
         [
           {
-            "node": "¿Precios Completos?",
+            "node": "Marcar Sessão Completa",
             "type": "main",
             "index": 0
           }
@@ -2895,7 +2951,7 @@
       "main": [
         [
           {
-            "node": "Enviar Respuesta",
+            "node": "Marcar Sessão Completa",
             "type": "main",
             "index": 0
           }
@@ -3167,14 +3223,14 @@
       "main": [
         [
           {
-            "node": "Enviar Respuesta",
+            "node": "Marcar Sessão Completa",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Enviar Respuesta",
+            "node": "Marcar Sessão Completa",
             "type": "main",
             "index": 0
           }
@@ -3215,6 +3271,71 @@
         [
           {
             "node": "Detectar Fornecedor Completo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preguntar Continuação": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Opção Continuação": {
+      "main": [
+        [
+          {
+            "node": "Router Continuação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router Continuação": {
+      "main": [
+        [
+          {
+            "node": "Crear Sesión de Compra",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Datos Subir Precios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agente Registrar Fornecedor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generar Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Sessão Completa": {
+      "main": [
+        [
+          {
+            "node": "Preguntar Continuação",
             "type": "main",
             "index": 0
           }
