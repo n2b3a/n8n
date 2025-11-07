@@ -206,7 +206,21 @@ Si encuentras algún problema:
 
 ---
 
+## 🔍 Historial de Fixes
+
+### Fix 1: Conexiones con IDs en lugar de nombres (commit d3d80fc)
+**Error**: "Could not find property option"
+**Causa**: Conexiones usaban IDs de nodos en lugar de nombres
+**Solución**: 35 conexiones corregidas para usar nombres de nodos
+
+### Fix 2: Switch node con estructura incorrecta (commit b9d7869)
+**Error**: "Could not find property option"
+**Causa**: Nuevo Switch node usaba typeVersion 3 con structure "rules"
+**Solución**: Cambiado a typeVersion 3.3 con mode "expression" (consistente con otros routers)
+
+---
+
 **Última actualización**: 2025-11-06
-**Commit**: d3d80fc
+**Commit**: b9d7869 ← **USA ESTE**
 **Branch**: claude/n8n-json-integration-011CUptXDtoKvtMESc65mKaW
-**Estado**: ✅ Listo para importar
+**Estado**: ✅ Listo para importar (doble validado)
