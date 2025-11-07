@@ -2,6 +2,73 @@
   "name": "Frepi MVP1 - Main | SA - Enhanced",
   "nodes": [
     {
+      "id": "CONFIG_GLOBAL",
+      "name": "Config Global",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        200,
+        200
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "price_validity",
+              "name": "PRICE_VALIDITY_DAYS",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "pref_fields",
+              "name": "PREFERENCE_FIELDS_TOTAL",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "id": "welcome_msg",
+              "name": "WELCOME_MESSAGE",
+              "value": "🍽️ *Bem-vindo ao Frepi!*",
+              "type": "string"
+            },
+            {
+              "id": "session_timeout",
+              "name": "SESSION_TIMEOUT_MINUTES",
+              "value": 60,
+              "type": "number"
+            },
+            {
+              "id": "max_retries",
+              "name": "AI_MAX_RETRIES",
+              "value": 3,
+              "type": "number"
+            },
+            {
+              "id": "ai_timeout",
+              "name": "AI_TIMEOUT_SECONDS",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "incomplete_profile_warning",
+              "name": "INCOMPLETE_PROFILE_WARNING",
+              "value": "⚠️ *Perfil incompleto ({percentage}%)*\n→ Configure preferências para melhores recomendações!\n\n",
+              "type": "string"
+            },
+            {
+              "id": "continuation_message",
+              "name": "CONTINUATION_MESSAGE",
+              "value": "✅ *Pronto!*\n\n💬 Posso te ajudar com algo mais?\n\n1️⃣ Fazer outra compra\n2️⃣ Atualizar preços\n3️⃣ Registrar fornecedor\n4️⃣ Ver menú principal\n\nDigite o número ou descreva o que precisa.",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "notes": "Configuração global do workflow. Modifique aqui para ajustar comportamento."
+    },
+    {
       "parameters": {
         "updates": [
           "messages"
@@ -128,7 +195,9 @@
         "options": {
           "frequencyPenalty": 1.5,
           "presencePenalty": 0.6,
-          "temperature": 0.3
+          "temperature": 0.3,
+          "timeout": 30000,
+          "maxRetries": 3
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
@@ -748,7 +817,10 @@
           "mode": "list",
           "value": "gpt-4.1-mini"
         },
-        "options": {}
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
@@ -938,7 +1010,10 @@
           "mode": "list",
           "value": "gpt-4.1-mini"
         },
-        "options": {}
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
@@ -1148,7 +1223,10 @@
           "mode": "list",
           "value": "gpt-4.1-mini"
         },
-        "options": {}
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
@@ -1217,7 +1295,10 @@
           "mode": "list",
           "value": "gpt-4.1-mini"
         },
-        "options": {}
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
@@ -1463,7 +1544,10 @@
           "mode": "list",
           "value": "gpt-4.1-mini"
         },
-        "options": {}
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
@@ -1642,7 +1726,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 📊 Calcular % de preferencias completadas\nconst usuario = $input.first().json;\n\nconsole.log('📊 [Calcular %] Verificando preferencias del restaurante');\n\n// Obtener datos del restaurante\nconst restaurantId = usuario.restaurant_id;\n\nlet camposCompletados = 0;\nconst totalCampos = 5;\n\ntry {\n  const { data: restaurant } = await $supabase\n    .from('restaurants')\n    .select('category_preferences, preferred_suppliers, ordering_frequency, monthly_spend_avg, payment_terms')\n    .eq('id', restaurantId)\n    .single();\n  \n  if (!restaurant) {\n    console.log('⚠️ [Calcular %] Restaurante no encontrado');\n    return [{\n      json: {\n        ...usuario,\n        preferencias_porcentaje: 0,\n        is_menu_interaction: false\n      }\n    }];\n  }\n  \n  // Verificar cada campo\n  if (restaurant.category_preferences && Object.keys(restaurant.category_preferences).length > 0) {\n    camposCompletados++;\n  }\n  if (restaurant.preferred_suppliers && restaurant.preferred_suppliers.length > 0) {\n    camposCompletados++;\n  }\n  if (restaurant.ordering_frequency) {\n    camposCompletados++;\n  }\n  if (restaurant.monthly_spend_avg && restaurant.monthly_spend_avg > 0) {\n    camposCompletados++;\n  }\n  if (restaurant.payment_terms) {\n    camposCompletados++;\n  }\n  \n  const porcentaje = Math.round((camposCompletados / totalCampos) * 100);\n  \n  console.log(`📊 [Calcular %] ${camposCompletados}/${totalCampos} completados = ${porcentaje}%`);\n  \n  return [{\n    json: {\n      ...usuario,\n      preferencias_porcentaje: porcentaje,\n      campos_completados: camposCompletados,\n      total_campos: totalCampos,\n      is_menu_interaction: false\n    }\n  }];\n  \n} catch (error) {\n  console.error('❌ [Calcular %] Error:', error);\n  return [{\n    json: {\n      ...usuario,\n      preferencias_porcentaje: 0,\n      is_menu_interaction: false\n    }\n  }];\n}",
+        "jsCode": "// 📊 Calcular % de preferencias completadas\nconst usuario = $input.first().json;\n\nconsole.log('📊 [Calcular %] Verificando preferencias del restaurante');\n\n// Obtener datos del restaurante\nconst restaurantId = usuario.restaurant_id;\n\nlet camposCompletados = 0;\nconst totalCampos = parseInt($('Config Global').first().json.PREFERENCE_FIELDS_TOTAL);\n\ntry {\n  const { data: restaurant } = await $supabase\n    .from('restaurants')\n    .select('category_preferences, preferred_suppliers, ordering_frequency, monthly_spend_avg, payment_terms')\n    .eq('id', restaurantId)\n    .single();\n  \n  if (!restaurant) {\n    console.log('⚠️ [Calcular %] Restaurante no encontrado');\n    return [{\n      json: {\n        ...usuario,\n        preferencias_porcentaje: 0,\n        is_menu_interaction: false\n      }\n    }];\n  }\n  \n  // Verificar cada campo\n  if (restaurant.category_preferences && Object.keys(restaurant.category_preferences).length > 0) {\n    camposCompletados++;\n  }\n  if (restaurant.preferred_suppliers && restaurant.preferred_suppliers.length > 0) {\n    camposCompletados++;\n  }\n  if (restaurant.ordering_frequency) {\n    camposCompletados++;\n  }\n  if (restaurant.monthly_spend_avg && restaurant.monthly_spend_avg > 0) {\n    camposCompletados++;\n  }\n  if (restaurant.payment_terms) {\n    camposCompletados++;\n  }\n  \n  const porcentaje = Math.round((camposCompletados / totalCampos) * 100);\n  \n  console.log(`📊 [Calcular %] ${camposCompletados}/${totalCampos} completados = ${porcentaje}%`);\n  \n  return [{\n    json: {\n      ...usuario,\n      preferencias_porcentaje: porcentaje,\n      campos_completados: camposCompletados,\n      total_campos: totalCampos,\n      is_menu_interaction: false\n    }\n  }];\n  \n} catch (error) {\n  console.error('❌ [Calcular %] Error:', error);\n  return [{\n    json: {\n      ...usuario,\n      preferencias_porcentaje: 0,\n      is_menu_interaction: false\n    }\n  }];\n}",
         "credentials": {
           "supabaseApi": {
             "id": "YaSYB0r907WCaDZK",
@@ -1661,7 +1745,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Generar Menú Principal] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Generar Menú Principal',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const usuario = $input.first().json;\nconst porcentaje = usuario.preferencias_porcentaje || 0;\nconst phoneNumber = usuario.phone_number || $input.first().json.phone_number;\n\nconsole.log(`📋 [Generar Menú] Usuario: ${usuario.nome || 'Sin nombre'}`);\nconsole.log(`   Preferencias: ${porcentaje}%`);\n\n// Construir advertencia si perfil incompleto\nlet advertencia = '';\nif (porcentaje < 100) {\n  advertencia = `⚠️ *Perfil incompleto (${porcentaje}%)*\n→ Configure preferências para melhores recomendações!\n\n`;\n}\n\nconst menuText = `🍽️ *Bem-vindo ao Frepi!*\n\n${advertencia}Escolha uma opção:\n\n1️⃣ Fazer uma compra\n2️⃣ Atualizar preços de fornecedor\n3️⃣ Registrar/Atualizar fornecedor\n4️⃣ Configurar preferências (${porcentaje}%)${porcentaje < 100 ? ' ⬅️ *Recomendado!*' : ' ✅'}\n\n💬 Você pode digitar o número ou descrever o que precisa.\nExemplo: \"quero fazer uma compra\" ou \"1\"`;\n\nreturn [{\n  json: {\n    output: menuText,\n    phone_number: phoneNumber,\n    user_data: usuario,\n    is_menu: true\n  }\n}];\n\n} catch (error) {\n  console.error(`[Generar Menú Principal] Error: ${error.message}`);\n  console.error(`[Generar Menú Principal] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Generar Menú Principal',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Generar Menú Principal] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Generar Menú Principal',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const usuario = $input.first().json;\nconst porcentaje = usuario.preferencias_porcentaje || 0;\nconst phoneNumber = usuario.phone_number || $input.first().json.phone_number;\n\nconsole.log(`📋 [Generar Menú] Usuario: ${usuario.nome || 'Sin nombre'}`);\nconsole.log(`   Preferencias: ${porcentaje}%`);\n\n// Construir advertencia si perfil incompleto\nlet advertencia = '';\nif (porcentaje < 100) {\n  advertencia = `⚠️ *Perfil incompleto (${porcentaje}%)*\n→ Configure preferências para melhores recomendações!\n\n`;\n}\n\nconst menuText = `${$('Config Global').first().json.WELCOME_MESSAGE}\n\n${advertencia}Escolha uma opção:\n\n1️⃣ Fazer uma compra\n2️⃣ Atualizar preços de fornecedor\n3️⃣ Registrar/Atualizar fornecedor\n4️⃣ Configurar preferências (${porcentaje}%)${porcentaje < 100 ? ' ⬅️ *Recomendado!*' : ' ✅'}\n\n💬 Você pode digitar o número ou descrever o que precisa.\nExemplo: \"quero fazer uma compra\" ou \"1\"`;\n\nreturn [{\n  json: {\n    output: menuText,\n    phone_number: phoneNumber,\n    user_data: usuario,\n    is_menu: true\n  }\n}];\n\n} catch (error) {\n  console.error(`[Generar Menú Principal] Error: ${error.message}`);\n  console.error(`[Generar Menú Principal] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Generar Menú Principal',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1708,7 +1792,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 🔍 Validar disponibilidad de precios antes de procesar pedido\nconst productos = $input.first().json.produtos;\nconst restaurantId = $input.first().json.restaurant_id;\nconst phoneNumber = $input.first().json.phone_number;\n\nconsole.log(`🔍 [Validar Precios] Verificando ${productos.length} productos`);\n\nconst resultados = [];\nlet hayProblemas = false;\n\nfor (const producto of productos) {\n  try {\n    // Buscar producto en master_list\n    const { data: masterProducts } = await $supabase\n      .from('master_list')\n      .select('id, product_name')\n      .ilike('product_name', `%${producto.produto}%`)\n      .limit(1);\n    \n    if (!masterProducts || masterProducts.length === 0) {\n      resultados.push({\n        produto: producto.produto,\n        problema: 'no_encontrado',\n        mensaje: `Produto \"${produto.produto}\" não encontrado no catálogo`\n      });\n      hayProblemas = true;\n      console.log(`⚠️ Produto no encontrado: ${produto.produto}`);\n      continue;\n    }\n    \n    const masterListId = masterProducts[0].id;\n    \n    // Verificar precios recientes (< 30 días)\n    const fechaLimite = new Date();\n    fechaLimite.setDate(fechaLimite.getDate() - 30);\n    \n    const { data: recentPrices, error } = await $supabase\n      .from('pricing_history')\n      .select('id, supplier_id, unit_price, effective_date, suppliers(company_name)')\n      .eq('master_list_id', masterListId)\n      .gte('effective_date', fechaLimite.toISOString())\n      .order('effective_date', { ascending: false })\n      .limit(5);\n    \n    if (!recentPrices || recentPrices.length === 0) {\n      // Buscar el precio más reciente aunque sea antiguo\n      const { data: oldestPrice } = await $supabase\n        .from('pricing_history')\n        .select('effective_date, suppliers(company_name)')\n        .eq('master_list_id', masterListId)\n        .order('effective_date', { ascending: false })\n        .limit(1)\n        .single();\n      \n      if (oldestPrice) {\n        const diasAtras = Math.floor((Date.now() - new Date(oldestPrice.effective_date)) / (1000 * 60 * 60 * 24));\n        resultados.push({\n          produto: produto.produto,\n          problema: 'precos_desatualizados',\n          dias_atras: diasAtras,\n          ultimo_fornecedor: oldestPrice.suppliers?.company_name,\n          mensaje: `Preços desatualizados (há ${diasAtras} dias)`\n        });\n        hayProblemas = true;\n        console.log(`⚠️ Preços antigos para ${produto.produto}: ${diasAtras} días`);\n      } else {\n        resultados.push({\n          produto: produto.produto,\n          problema: 'sin_precios',\n          mensaje: 'Sem preços cadastrados'\n        });\n        hayProblemas = true;\n        console.log(`⚠️ Sin precios: ${produto.produto}`);\n      }\n    } else {\n      resultados.push({\n        produto: produto.produto,\n        problema: null,\n        precos_encontrados: recentPrices.length,\n        mensaje: `✅ ${recentPrices.length} preços atualizados`\n      });\n      console.log(`✅ Preços OK para ${produto.produto}: ${recentPrices.length} opciones`);\n    }\n    \n  } catch (error) {\n    console.error(`❌ Error validando ${producto.produto}:`, error);\n    resultados.push({\n      produto: producto.produto,\n      problema: 'erro',\n      mensaje: 'Erro ao verificar preços'\n    });\n    hayProblemas = true;\n  }\n}\n\nconsole.log(`🔍 [Validar Precios] Problemas detectados: ${hayProblemas}`);\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    restaurant_id: restaurantId,\n    produtos: productos,\n    validacion: resultados,\n    hay_problemas: hayProblemas,\n    puede_continuar: true  // Opción B: siempre permitir\n  }\n}];",
+        "jsCode": "// 🔍 Validar disponibilidad de precios antes de procesar pedido\nconst productos = $input.first().json.produtos;\nconst restaurantId = $input.first().json.restaurant_id;\nconst phoneNumber = $input.first().json.phone_number;\n\nconsole.log(`🔍 [Validar Precios] Verificando ${productos.length} productos`);\n\nconst resultados = [];\nlet hayProblemas = false;\n\nfor (const producto of productos) {\n  try {\n    // Buscar producto en master_list\n    const { data: masterProducts } = await $supabase\n      .from('master_list')\n      .select('id, product_name')\n      .ilike('product_name', `%${producto.produto}%`)\n      .limit(1);\n    \n    if (!masterProducts || masterProducts.length === 0) {\n      resultados.push({\n        produto: producto.produto,\n        problema: 'no_encontrado',\n        mensaje: `Produto \"${produto.produto}\" não encontrado no catálogo`\n      });\n      hayProblemas = true;\n      console.log(`⚠️ Produto no encontrado: ${produto.produto}`);\n      continue;\n    }\n    \n    const masterListId = masterProducts[0].id;\n    \n    // Verificar precios recientes (< 30 días)\n    const fechaLimite = new Date();\n    fechaLimite.setDate(fechaLimite.getDate() - parseInt($('Config Global').first().json.PRICE_VALIDITY_DAYS));\n    \n    const { data: recentPrices, error } = await $supabase\n      .from('pricing_history')\n      .select('id, supplier_id, unit_price, effective_date, suppliers(company_name)')\n      .eq('master_list_id', masterListId)\n      .gte('effective_date', fechaLimite.toISOString())\n      .order('effective_date', { ascending: false })\n      .limit(5);\n    \n    if (!recentPrices || recentPrices.length === 0) {\n      // Buscar el precio más reciente aunque sea antiguo\n      const { data: oldestPrice } = await $supabase\n        .from('pricing_history')\n        .select('effective_date, suppliers(company_name)')\n        .eq('master_list_id', masterListId)\n        .order('effective_date', { ascending: false })\n        .limit(1)\n        .single();\n      \n      if (oldestPrice) {\n        const diasAtras = Math.floor((Date.now() - new Date(oldestPrice.effective_date)) / (1000 * 60 * 60 * 24));\n        resultados.push({\n          produto: produto.produto,\n          problema: 'precos_desatualizados',\n          dias_atras: diasAtras,\n          ultimo_fornecedor: oldestPrice.suppliers?.company_name,\n          mensaje: `Preços desatualizados (há ${diasAtras} dias)`\n        });\n        hayProblemas = true;\n        console.log(`⚠️ Preços antigos para ${produto.produto}: ${diasAtras} días`);\n      } else {\n        resultados.push({\n          produto: produto.produto,\n          problema: 'sin_precios',\n          mensaje: 'Sem preços cadastrados'\n        });\n        hayProblemas = true;\n        console.log(`⚠️ Sin precios: ${produto.produto}`);\n      }\n    } else {\n      resultados.push({\n        produto: produto.produto,\n        problema: null,\n        precos_encontrados: recentPrices.length,\n        mensaje: `✅ ${recentPrices.length} preços atualizados`\n      });\n      console.log(`✅ Preços OK para ${produto.produto}: ${recentPrices.length} opciones`);\n    }\n    \n  } catch (error) {\n    console.error(`❌ Error validando ${producto.produto}:`, error);\n    resultados.push({\n      produto: producto.produto,\n      problema: 'erro',\n      mensaje: 'Erro ao verificar preços'\n    });\n    hayProblemas = true;\n  }\n}\n\nconsole.log(`🔍 [Validar Precios] Problemas detectados: ${hayProblemas}`);\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    restaurant_id: restaurantId,\n    produtos: productos,\n    validacion: resultados,\n    hay_problemas: hayProblemas,\n    puede_continuar: true  // Opción B: siempre permitir\n  }\n}];",
         "credentials": {
           "supabaseApi": {
             "id": "YaSYB0r907WCaDZK",
@@ -1856,7 +1940,10 @@
           "mode": "list",
           "value": "gpt-4.1-mini"
         },
-        "options": {}
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
@@ -1912,7 +1999,10 @@
           "mode": "list",
           "value": "gpt-4.1-mini"
         },
-        "options": {}
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
@@ -2073,20 +2163,6 @@
       }
     },
     {
-      "id": "PREGUNTAR_CONTINUACAO",
-      "name": "Preguntar Continuação",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2200,
-        2728
-      ],
-      "parameters": {
-        "language": "javaScript",
-        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Preguntar Continuação] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Preguntar Continuação',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const input = $input.first().json;\nconst phoneNumber = input.phone_number;\nconst usuario = input.user_data || input;\n\nconsole.log(`💬 [Continuação] Preguntando al usuario qué más necesita`);\n\nconst mensagemContinuacao = `✅ *Pronto!*\n\n💬 Posso te ajudar com algo mais?\n\n1️⃣ Fazer outra compra\n2️⃣ Atualizar preços\n3️⃣ Registrar fornecedor\n4️⃣ Ver menú principal\n\nDigite o número ou descreva o que precisa.`;\n\nreturn [{\n  json: {\n    output: mensagemContinuacao,\n    phone_number: phoneNumber,\n    user_data: usuario,\n    awaiting_continuation: true\n  }\n}];\n\n} catch (error) {\n  console.error(`[Preguntar Continuação] Error: ${error.message}`);\n  console.error(`[Preguntar Continuação] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Preguntar Continuação',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
-      }
-    },
-    {
       "id": "DETECTAR_OPCAO_CONTINUACAO",
       "name": "Detectar Opção Continuação",
       "type": "n8n-nodes-base.code",
@@ -2115,8 +2191,8 @@
       }
     },
     {
-      "id": "MARCAR_SESSAO_COMPLETA",
-      "name": "Marcar Sessão Completa",
+      "id": "CONTINUATION_HANDLER_COMBINED",
+      "name": "Continuation Handler",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -2125,12 +2201,26 @@
       ],
       "parameters": {
         "language": "javaScript",
-        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Marcar Sessão Completa] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Marcar Sessão Completa',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  // FIXED: No usar $supabase directamente\n// En su lugar, preparamos los datos para el siguiente nodo\n\nconst input = $input.first();\n\n// Validación de input\nif (!input || !input.json) {\n  console.error('[Marcar Sessão] Input vacío o inválido');\n  return [{\n    json: {\n      error: true,\n      message: 'Erro interno: input inválido',\n      phone_number: 'unknown'\n    }\n  }];\n}\n\nconst data = input.json;\nconst sessionId = data.session_id;\nconst phoneNumber = data.phone_number || data.user_data?.phone_number;\n\nconsole.log(`✅ [Marcar Sessão] Preparando para marcar sesión: ${sessionId || 'N/A'}`);\n\nif (!sessionId) {\n  console.warn('[Marcar Sessão] No session_id found, skipping update');\n}\n\n// Pasar datos al siguiente nodo CON los campos de actualización\nreturn [{\n  json: {\n    ...data,\n    session_completed: true,\n    // Estos campos se usarán en el Supabase node siguiente\n    _session_update: sessionId ? {\n      session_id: sessionId,\n      session_end: new Date().toISOString(),\n      is_completed: true,\n      last_activity_at: new Date().toISOString()\n    } : null\n  }\n}];\n\n} catch (error) {\n  console.error(`[Marcar Sessão Completa] Error: ${error.message}`);\n  console.error(`[Marcar Sessão Completa] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Marcar Sessão Completa',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+        "jsCode": "// ===== COMBINED CONTINUATION HANDLER =====\n// This node combines: Mark Session + Update DB + Ask Continuation\n\n// ===== STRUCTURED LOGGING =====\nconst LOG = {\n  prefix: '[Continuation Handler]',\n  info: (msg, data) => console.log(`${LOG.prefix} ℹ️  ${msg}`, data !== undefined ? JSON.stringify(data).substring(0, 200) : ''),\n  success: (msg, data) => console.log(`${LOG.prefix} ✅ ${msg}`, data !== undefined ? JSON.stringify(data).substring(0, 200) : ''),\n  error: (msg, err) => console.error(`${LOG.prefix} ❌ ${msg}`, err || ''),\n  warn: (msg) => console.warn(`${LOG.prefix} ⚠️  ${msg}`)\n};\n// ===== END LOGGING =====\n\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    LOG.error('Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Continuation Handler',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  const data = input.json;\n  const sessionId = data.session_id;\n  const phoneNumber = data.phone_number || data.user_data?.phone_number;\n\n  LOG.info('Processing continuation', { sessionId, phoneNumber });\n\n  // Get continuation message from Config\n  const continuationMessage = $('Config Global').first().json.CONTINUATION_MESSAGE;\n\n  // STEP 1: Prepare session update data (will be used by next Supabase node)\n  const sessionUpdate = sessionId ? {\n    session_id: sessionId,\n    session_end: new Date().toISOString(),\n    is_completed: true,\n    last_activity_at: new Date().toISOString()\n  } : null;\n\n  if (!sessionId) {\n    LOG.warn('No session_id found, skipping session update');\n  } else {\n    LOG.success('Session prepared for completion', { sessionId });\n  }\n\n  // STEP 2: Return data with continuation message\n  const result = {\n    ...data,\n    output: continuationMessage,\n    phone_number: phoneNumber,\n    awaiting_continuation: true,\n    session_completed: true,\n    _session_update: sessionUpdate\n  };\n\n  LOG.success('Continuation handler completed');\n\n  return [{ json: result }];\n\n} catch (error) {\n  LOG.error(`Error: ${error.message}`);\n  LOG.error(`Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Continuation Handler',\n      phone_number: input?.json?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END COMBINED CONTINUATION HANDLER ====="
       }
     },
     {
-      "id": "UPDATE_SESSION_SUPABASE",
-      "name": "Update Session in DB",
+      "id": "GLOBAL_ERROR_HANDLER",
+      "name": "Global Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        3728
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Global Error Handler\nconst input = $input.first();\nconst error = input?.json?.error_message || 'Erro desconhecido';\nconst errorNode = input?.json?.error_node || 'Unknown';\nconst phoneNumber = input?.json?.phone_number || 'unknown';\n\nconsole.error(`[Global Error Handler] Error from ${errorNode}: ${error}`);\n\n// Log to metrics/monitoring (if available)\n// await logError(errorNode, error, phoneNumber);\n\nconst errorMessage = `❌ *Desculpe, algo deu errado.*\n\nTente novamente ou digite *\"menu\"* para voltar ao início.\n\nCódigo do erro: ${errorNode}`;\n\nreturn [{\n  json: {\n    output: errorMessage,\n    phone_number: phoneNumber,\n    is_error: true\n  }\n}];"
+      }
+    },
+    {
+      "id": "UPDATE_SESSION_DB",
+      "name": "Update Session DB",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
@@ -2162,17 +2252,17 @@
       }
     },
     {
-      "id": "GLOBAL_ERROR_HANDLER",
-      "name": "Global Error Handler",
+      "id": "AI_ERROR_HANDLER",
+      "name": "AI Error Handler",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2400,
-        3728
+        2600,
+        3928
       ],
       "parameters": {
         "language": "javaScript",
-        "jsCode": "// Global Error Handler\nconst input = $input.first();\nconst error = input?.json?.error_message || 'Erro desconhecido';\nconst errorNode = input?.json?.error_node || 'Unknown';\nconst phoneNumber = input?.json?.phone_number || 'unknown';\n\nconsole.error(`[Global Error Handler] Error from ${errorNode}: ${error}`);\n\n// Log to metrics/monitoring (if available)\n// await logError(errorNode, error, phoneNumber);\n\nconst errorMessage = `❌ *Desculpe, algo deu errado.*\n\nTente novamente ou digite *\"menu\"* para voltar ao início.\n\nCódigo do erro: ${errorNode}`;\n\nreturn [{\n  json: {\n    output: errorMessage,\n    phone_number: phoneNumber,\n    is_error: true\n  }\n}];"
+        "jsCode": "// ===== AI ERROR HANDLER =====\n// Provides fallback messages when AI agents fail\n\n// ===== STRUCTURED LOGGING =====\nconst LOG = {\n  prefix: '[AI Error Handler]',\n  info: (msg, data) => console.log(`${LOG.prefix} ℹ️  ${msg}`, data !== undefined ? JSON.stringify(data).substring(0, 200) : ''),\n  success: (msg, data) => console.log(`${LOG.prefix} ✅ ${msg}`, data !== undefined ? JSON.stringify(data).substring(0, 200) : ''),\n  error: (msg, err) => console.error(`${LOG.prefix} ❌ ${msg}`, err || ''),\n  warn: (msg) => console.warn(`${LOG.prefix} ⚠️  ${msg}`)\n};\n// ===== END LOGGING =====\n\ntry {\n  const input = $input.first();\n  if (!input || !input.json) {\n    LOG.error('Input vacío');\n    return [{\n      json: {\n        error: true,\n        output: 'Erro interno. Digite \"menu\" para voltar.',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  const data = input.json;\n  const agentName = data.agent_name || 'Agente AI';\n  const phoneNumber = data.phone_number || data.user_data?.phone_number || 'unknown';\n\n  LOG.warn(`AI agent failed: ${agentName}`);\n\n  // Fallback messages by agent type\n  const fallbackMessages = {\n    'Onboarding Agent': `Desculpe, estou com um problema técnico temporário. 😅\n\nPor favor, me conte novamente as informações do seu restaurante:\n- Nome do restaurante\n- Nome do contato\n- Cidade\n- Tipo de negócio`,\n\n    'Agente de Compras': `Oi! Estou com um problema técnico momentâneo. 🔧\n\nPor favor, me diga novamente o que você precisa comprar.\n\nExemplo: \"5kg de arroz, 3L de óleo\"`,\n\n    'Agente Subir Precios': `Desculpe, não consegui processar os preços. 😅\n\nPode enviar a lista de preços novamente?\n\nFormato:\nProduto - Preço\nExemplo: Arroz 5kg - R$ 25.00`,\n\n    'Agente Registrar Fornecedor': `Ops, houve um erro ao cadastrar o fornecedor. 😅\n\nVamos tentar de novo! Me diga:\n1. Nome do fornecedor\n2. Telefone/WhatsApp\n3. Dias de entrega\n4. Produtos que fornece`,\n\n    'Agente de Setup': `Desculpe, tive um problema técnico. 🔧\n\nVamos configurar suas preferências de novo.\nQual é a primeira informação que você quer cadastrar?`,\n\n    'Agente de Menú Principal': `Desculpe, estou com um problema temporário. 😅\n\nDigite o número da opção que você quer:\n1 - Fazer uma compra\n2 - Atualizar preços\n3 - Registrar fornecedor\n4 - Configurar preferências`\n  };\n\n  // Get fallback message or use generic one\n  const fallbackMessage = fallbackMessages[agentName] || `Desculpe, estou com um problema técnico. 🔧\n\nPor favor, tente novamente ou digite \"menu\" para voltar ao início.`;\n\n  LOG.info('Fallback message sent', { agent: agentName });\n\n  return [{\n    json: {\n      output: fallbackMessage,\n      phone_number: phoneNumber,\n      is_ai_fallback: true,\n      agent_name: agentName\n    }\n  }];\n\n} catch (error) {\n  LOG.error(`Error in fallback handler: ${error.message}`);\n\n  return [{\n    json: {\n      output: 'Desculpe, algo deu muito errado. Digite \"menu\" para voltar.',\n      phone_number: input?.json?.phone_number || 'unknown',\n      error: true\n    }\n  }];\n}\n// ===== END AI ERROR HANDLER ====="
       }
     }
   ],
@@ -2918,7 +3008,7 @@
       "main": [
         [
           {
-            "node": "Marcar Sessão Completa",
+            "node": "Continuation Handler",
             "type": "main",
             "index": 0
           }
@@ -2998,7 +3088,7 @@
       "main": [
         [
           {
-            "node": "Marcar Sessão Completa",
+            "node": "Continuation Handler",
             "type": "main",
             "index": 0
           }
@@ -3270,14 +3360,14 @@
       "main": [
         [
           {
-            "node": "Marcar Sessão Completa",
+            "node": "Continuation Handler",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Marcar Sessão Completa",
+            "node": "Continuation Handler",
             "type": "main",
             "index": 0
           }
@@ -3318,17 +3408,6 @@
         [
           {
             "node": "Detectar Fornecedor Completo",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Preguntar Continuação": {
-      "main": [
-        [
-          {
-            "node": "Enviar Respuesta",
             "type": "main",
             "index": 0
           }
@@ -3378,29 +3457,40 @@
         ]
       ]
     },
-    "Marcar Sessão Completa": {
-      "main": [
-        [
-          {
-            "node": "Update Session in DB",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update Session in DB": {
-      "main": [
-        [
-          {
-            "node": "Preguntar Continuação",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Global Error Handler": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continuation Handler": {
+      "main": [
+        [
+          {
+            "node": "Continuation Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Session DB": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Error Handler": {
       "main": [
         [
           {
