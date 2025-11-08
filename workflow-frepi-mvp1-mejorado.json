@@ -2272,7 +2272,7 @@
       "main": [
         [
           {
-            "node": "Extraer Datos WhatsApp",
+            "node": "Config Global",
             "type": "main",
             "index": 0
           }
@@ -3495,6 +3495,17 @@
         [
           {
             "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Global": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos WhatsApp",
             "type": "main",
             "index": 0
           }
