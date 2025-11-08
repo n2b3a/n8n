@@ -3472,7 +3472,7 @@
       "main": [
         [
           {
-            "node": "Continuation Handler",
+            "node": "Update Session DB",
             "type": "main",
             "index": 0
           }
