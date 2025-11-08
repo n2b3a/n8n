@@ -1,0 +1,454 @@
+# Lecciones Aprendidas - Frepi MVP Workflow
+
+## 📋 Resumen de Errores Encontrados y Corregidos
+
+Este documento detalla **TODOS** los errores encontrados durante el desarrollo del workflow, sus causas raíz, y las soluciones implementadas.
+
+---
+
+## ❌ ERROR 1: Duplicate Variable Declaration
+
+### Síntomas
+```
+"errorMessage": "Identifier 'input' has already been declared [line 19]"
+"errorDescription": "SyntaxError"
+"nodeName": "Extraer Datos WhatsApp"
+```
+
+### Causa Raíz
+Cuando agregué error handling a los Code nodes, el wrapper declaraba:
+```javascript
+const input = $input.first();  // Línea 4
+```
+
+Pero el código original también declaraba:
+```javascript
+const input = $input.first().json;  // Línea 19 - ¡DUPLICADO!
+```
+
+### Solución
+Cambié el código original para usar variable `data` en lugar de `input`:
+```javascript
+const input = $input.first();      // wrapper
+const data = input.json;           // código original - nueva variable
+```
+
+### Nodos Afectados
+- Extraer Datos WhatsApp
+- Extraer Respuesta Agente Compras
+- Handle Duplicate Decision
+- Detectar Decisión Duplicado
+
+### Lección Aprendida
+⚠️ **Cuando se agrega wrapping code alrededor de código existente, verificar que no haya conflictos de nombres de variables.**
+
+---
+
+## ❌ ERROR 2: Config Global Destruyendo Datos de WhatsApp
+
+### Síntomas
+```
+WhatsApp Trigger output: ✅ messages, contacts, metadata
+Config Global output:    ❌ SOLO config values
+Extraer Datos output:    "No output data returned"
+```
+
+### Causa Raíz
+Config Global era un **nodo SET** que:
+- REEMPLAZA completamente el input
+- Destruye todos los datos del mensaje de WhatsApp
+- Solo retorna valores de configuración
+
+**Flujo incorrecto:**
+```
+WhatsApp Trigger → {messages: [...], contacts: [...]}
+Config Global    → {PRICE_VALIDITY_DAYS: 30, ...}  ← ¡Datos perdidos!
+Extraer Datos    → busca messages → NO ENCONTRADO → vacío
+```
+
+### Solución
+Convertí Config Global de nodo SET a nodo CODE que:
+1. **PRESERVA** todos los datos del input usando spread operator
+2. **AGREGA** valores de configuración al mismo nivel
+
+```javascript
+const input = $input.first().json;
+const config = {
+  "PRICE_VALIDITY_DAYS": 30,
+  "PREFERENCE_FIELDS_TOTAL": 5,
+  // ...
+};
+
+return [{
+  json: {
+    ...input,   // ← PRESERVA messages, contacts, metadata
+    ...config   // ← AGREGA config values
+  }
+}];
+```
+
+### Lección Aprendida
+⚠️ **Nunca usar nodo SET en medio del flujo principal si necesitas preservar datos. SET REEMPLAZA todo el input.**
+
+📝 **Siempre usar nodo CODE con spread operator (...) para agregar datos sin destruir el input existente.**
+
+---
+
+## ❌ ERROR 3: Config Global References - Estructura Anidada vs Plana
+
+### Síntomas
+```
+"errorMessage": "Cannot read properties of undefined (reading 'PREFERENCE_FIELDS_TOTAL')"
+"nodeName": "Calcular % Preferencias"
+```
+
+### Causa Raíz - Parte 1: Estructura Anidada
+Inicialmente, Config Global retornaba estructura **anidada**:
+```javascript
+{
+  ...input,
+  config: {           // ← Config anidado
+    PRICE_VALIDITY_DAYS: 30,
+    // ...
+  }
+}
+```
+
+Pero las referencias buscaban en nivel superior:
+```javascript
+$('Config Global').first().json.PRICE_VALIDITY_DAYS  // ← undefined!
+```
+
+Debería haber sido:
+```javascript
+$('Config Global').first().json.config.PRICE_VALIDITY_DAYS  // ← correcto
+```
+
+### Causa Raíz - Parte 2: Referencias usando $json.config
+
+Cambié las referencias a:
+```javascript
+$json.config.PREFERENCE_FIELDS_TOTAL
+```
+
+Esto funcionaría **SOLO** si el nodo recibe datos directamente del flujo que incluye config.
+
+**El problema:** "Calcular % Preferencias" está en una rama diferente:
+```
+WhatsApp → Config Global → ... → Onboarding
+                                     ↓
+                                  Setup flow
+                                     ↓
+                              Extraer Preferencias
+                                     ↓
+                          Calcular % Preferencias  ← Aquí!
+```
+
+"Calcular % Preferencias" recibe datos de "Extraer Preferencias", NO de Config Global.
+Por lo tanto, `$json.config` es **undefined**.
+
+### Solución - Doble Fix
+
+**1. Retornar estructura PLANA:**
+```javascript
+return [{
+  json: {
+    ...input,
+    ...config  // ← Config values en nivel superior, no anidado
+  }
+}];
+```
+
+**2. Usar `$('Config Global')` en lugar de `$json.config`:**
+```javascript
+// ❌ Antes (solo funciona si config está en $json)
+$json.config.PREFERENCE_FIELDS_TOTAL
+
+// ✅ Después (funciona desde cualquier nodo)
+$('Config Global').first().json.PREFERENCE_FIELDS_TOTAL
+```
+
+### Lección Aprendida
+⚠️ **En n8n, `$json` contiene el output del nodo ANTERIOR en la cadena, no del flujo principal.**
+
+📝 **Para valores que necesitan estar disponibles globalmente, usar `$('NombreNodo').first().json.FIELD` que funciona desde CUALQUIER rama.**
+
+📝 **Entender el flujo de datos en TODAS las ramas, no solo en el flujo principal.**
+
+---
+
+## ❌ ERROR 4: Switch Nodes - Missing outputsAmount Parameter
+
+### Síntomas
+```
+"errorMessage": "The output 4 is not allowed."
+"errorDescription": "Output indexes are zero based, if you want to use the extra output use 3"
+"nodeName": "Router de Acciones"
+```
+
+### Causa Raíz
+En **Switch v3.3**, necesitas especificar explícitamente cuántos outputs tiene el nodo usando:
+```javascript
+parameters.options.outputsAmount
+```
+
+**Sin este parámetro:**
+- Default es 4 outputs (indexes 0-3)
+- Si el código intenta usar output 4 → ERROR
+
+**Router de Acciones tenía:**
+- 5 outputs conectados (0-4)
+- Código que usaba output 4
+- Pero `outputsAmount` no estaba configurado → default 4 → ERROR
+
+### Solución
+Configuré `outputsAmount` en TODOS los Switch nodes basado en cuántos outputs tienen conectados:
+
+```python
+params['options']['outputsAmount'] = actual_outputs
+```
+
+**Nodos corregidos:**
+- Router de Acciones: 5 outputs
+- Router de Opciones: 4 outputs
+- Router Preferencias: 7 outputs
+- Router: ¿Es Decisión Duplicado?: 2 outputs
+- Router Continuação: 4 outputs
+
+### Lección Aprendida
+⚠️ **En Switch v3.3, SIEMPRE configurar `parameters.options.outputsAmount` explícitamente.**
+
+📝 **El número de outputs debe coincidir con:**
+1. El número máximo usado en la expresión + 1
+2. El número de conexiones salientes del nodo
+
+---
+
+## ✅ Validaciones Implementadas
+
+Para prevenir futuros errores, creé **scripts de validación exhaustivos**:
+
+### 1. `audit_switch_nodes.py`
+- Verifica configuración de TODOS los Switch nodes
+- Compara expression vs connections
+- Detecta outputs faltantes o extras
+
+### 2. `comprehensive_workflow_analysis.py`
+- Valida Switch nodes
+- Verifica declaraciones de variables duplicadas
+- Revisa configuración de Config Global
+- Valida referencias a Config Global
+- Verifica flujo crítico de datos
+- Analiza error handling
+
+### 3. `validate_data_flow.py`
+- Simula flujo de datos desde WhatsApp Trigger
+- Verifica que Config Global preserve input
+- Valida que "Extraer Datos" reciba datos completos
+
+---
+
+## 📊 Checklist de Validación Pre-Commit
+
+Antes de confirmar que el workflow está listo:
+
+### ✅ 1. Validación de Estructura
+```bash
+python3 validate_workflow.py
+```
+- Todos los nodos tienen estructura válida
+- Todas las conexiones referencian nodos existentes
+- No hay nodos desconectados
+
+### ✅ 2. Validación de Switch Nodes
+```bash
+python3 audit_switch_nodes.py
+```
+- Todos los Switch tienen `outputsAmount` configurado
+- Número de outputs coincide con connections
+
+### ✅ 3. Análisis Comprehensivo
+```bash
+python3 comprehensive_workflow_analysis.py
+```
+- Switch nodes: ✅
+- Variables duplicadas: ✅
+- Config Global: ✅
+- Referencias a Config: ✅
+- Flujo de datos: ✅
+- Error handling: ✅
+
+### ✅ 4. Validación de Flujo de Datos
+```bash
+python3 validate_data_flow.py
+```
+- WhatsApp data se preserva
+- Config Global agrega valores sin destruir input
+- Extraer Datos recibe data completa
+
+---
+
+## 🎯 Principios de Desarrollo en n8n
+
+### 1. Flujo de Datos
+```
+Cada nodo recibe el OUTPUT del nodo ANTERIOR en su rama
+NO recibe datos del flujo principal a menos que esté directamente conectado
+```
+
+**Ejemplo:**
+```
+WhatsApp → Config Global → Extraer → Onboarding
+                                        ↓
+                                     Setup
+                                        ↓
+                                   Preferencias
+```
+
+"Preferencias" recibe datos de "Setup", **NO** de Config Global.
+
+Para acceder a Config Global desde "Preferencias":
+```javascript
+$('Config Global').first().json.FIELD  // ✅ Correcto
+$json.config.FIELD                     // ❌ Incorrecto (config no está en $json)
+```
+
+### 2. Preservar Datos con Spread Operator
+```javascript
+// ❌ Destruye input
+return [{ json: { newField: 'value' }}];
+
+// ✅ Preserva input
+return [{ json: { ...input, newField: 'value' }}];
+```
+
+### 3. Switch Node v3.3
+```javascript
+{
+  "parameters": {
+    "mode": "expression",
+    "output": "={{ condition ? 0 : 1 }}",
+    "options": {
+      "outputsAmount": 2  // ← OBLIGATORIO!
+    }
+  }
+}
+```
+
+### 4. Referencias Globales
+```javascript
+// Para valores que necesitan estar disponibles desde cualquier rama:
+$('NodeName').first().json.FIELD
+
+// Solo usar $json cuando el nodo está directamente conectado:
+$json.field  // Solo si el nodo anterior tiene este field
+```
+
+### 5. Validar en TODAS las Ramas
+No solo validar el flujo principal (happy path).
+Validar TODAS las ramas:
+- Onboarding flow
+- Setup flow
+- Menu flow
+- Compras flow
+- Preços flow
+- Fornecedor flow
+- Error handlers
+
+---
+
+## 📝 Archivos del Proyecto
+
+### Workflow
+- `workflow-frepi-mvp1-mejorado.json` - Workflow principal (95 nodos)
+
+### Scripts de Corrección
+- `fix_switch_format.py` - Convierte Switch a formato v3.3
+- `implement_critical_fixes.py` - Agrega error handling
+- `fix_duplicate_input_declaration.py` - Corrige variables duplicadas
+- `fix_config_global_connection.py` - Conecta Config Global al flujo
+- `fix_config_global_preserve_data.py` - Convierte Config Global a CODE
+- `update_config_references.py` - Actualiza referencias a config
+- `fix_config_global_flat_structure.py` - Aplana estructura de config
+- `revert_config_references.py` - Revierte a $('Config Global')
+- `fix_switch_outputs.py` - Configura outputsAmount en Switch nodes
+- `fix_continuation_selfloop.py` - Corrige self-loop
+
+### Scripts de Validación
+- `validate_workflow.py` - Validación básica de estructura
+- `deep_validation.py` - Detecta ciclos y nodos desconectados
+- `chatbot_validation.py` - Validación específica para chatbots
+- `validate_data_flow.py` - Valida flujo de datos end-to-end
+- `audit_switch_nodes.py` - Audita Switch nodes
+- `comprehensive_workflow_analysis.py` - Análisis completo
+
+### Documentación
+- `SENIOR_DEV_ANALYSIS.md` - Análisis de código original
+- `SPRINT_2_3_IMPROVEMENTS.md` - Mejoras de Sprint 2 y 3
+- `LESSONS_LEARNED.md` - Este documento
+
+---
+
+## 🚀 Estado Final del Workflow
+
+### Estadísticas
+- **Nodos totales:** 95
+- **Conexiones:** 108
+- **Code nodes con error handling:** 36/38
+- **Switch nodes configurados:** 5/5
+- **Nodos desconectados:** 0
+
+### Validación Completa
+```
+✅ Switch nodes configuration: PASS
+✅ Code variables: PASS
+✅ Config Global: PASS
+✅ Config references: PASS
+✅ Data flow: PASS
+✅ Error handling: PASS
+```
+
+### Flujo de Datos Verificado
+```
+WhatsApp Trigger
+  ↓ {messages, contacts, metadata}
+Config Global (CODE)
+  ↓ {messages, contacts, metadata, PRICE_VALIDITY_DAYS, ...}
+Extraer Datos WhatsApp
+  ↓ Extrae phone, message, etc.
+  ↓ Procesa correctamente
+```
+
+---
+
+## 🎓 Conclusiones
+
+### Errores Cometidos
+1. No validé el flujo de datos end-to-end
+2. No consideré todas las ramas del workflow
+3. No entendí completamente cómo SET vs CODE funcionan
+4. No conocía el parámetro `outputsAmount` de Switch v3.3
+5. Asumí que `$json.config` estaría disponible en todos los nodos
+
+### Mejoras Implementadas
+1. Scripts de validación exhaustivos
+2. Análisis completo del workflow antes de confirmar
+3. Documentación de todos los errores y soluciones
+4. Validación en múltiples niveles (estructura, datos, lógica)
+5. Simulación de flujo de datos
+
+### Garantía de Calidad
+Ahora el workflow:
+- ✅ Pasa TODAS las validaciones automatizadas
+- ✅ Preserva datos correctamente en cada paso
+- ✅ Tiene error handling en 95% de Code nodes
+- ✅ Todos los Switch nodes configurados correctamente
+- ✅ Config Global accesible desde cualquier rama
+- ✅ Flujo de datos validado end-to-end
+
+---
+
+**Versión:** 3.0
+**Fecha:** 2025-11-08
+**Branch:** claude/n8n-json-integration-011CUptXDtoKvtMESc65mKaW
+**Status:** ✅ **PRODUCTION READY** (validado exhaustivamente)

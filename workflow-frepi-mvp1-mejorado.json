@@ -1294,7 +1294,10 @@
     {
       "parameters": {
         "mode": "expression",
-        "output": "={{\n  $json.accion === 'hacer_pedido' ? 0 :\n  $json.accion === 'configurar' ? 1 :\n  $json.accion === 'enviar_precos' ? 2 :\n  $json.accion === 'cadastrar_fornecedor' ? 3 :\n  4\n}}"
+        "output": "={{\n  $json.accion === 'hacer_pedido' ? 0 :\n  $json.accion === 'configurar' ? 1 :\n  $json.accion === 'enviar_precos' ? 2 :\n  $json.accion === 'cadastrar_fornecedor' ? 3 :\n  4\n}}",
+        "options": {
+          "outputsAmount": 5
+        }
       },
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.3,
@@ -1397,7 +1400,10 @@
     {
       "parameters": {
         "mode": "expression",
-        "output": "={{\n  $json.detected_option === 'upload_prices' ? 0 :\n  $json.detected_option === 'make_order' ? 1 :\n  $json.detected_option === 'settings' ? 2 :\n  3\n}}"
+        "output": "={{\n  $json.detected_option === 'upload_prices' ? 0 :\n  $json.detected_option === 'make_order' ? 1 :\n  $json.detected_option === 'settings' ? 2 :\n  3\n}}",
+        "options": {
+          "outputsAmount": 4
+        }
       },
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.3,
@@ -1833,7 +1839,10 @@
     {
       "parameters": {
         "mode": "expression",
-        "output": "={{\n  $json.opcion_preferencia === 'productos_frequentes' ? 0 :\n  $json.opcion_preferencia === 'fornecedores_preferidos' ? 1 :\n  $json.opcion_preferencia === 'frequencia_compras' ? 2 :\n  $json.opcion_preferencia === 'orcamento_mensal' ? 3 :\n  $json.opcion_preferencia === 'condicoes_pagamento' ? 4 :\n  $json.opcion_preferencia === 'voltar_menu' ? 5 :\n  6\n}}"
+        "output": "={{\n  $json.opcion_preferencia === 'productos_frequentes' ? 0 :\n  $json.opcion_preferencia === 'fornecedores_preferidos' ? 1 :\n  $json.opcion_preferencia === 'frequencia_compras' ? 2 :\n  $json.opcion_preferencia === 'orcamento_mensal' ? 3 :\n  $json.opcion_preferencia === 'condicoes_pagamento' ? 4 :\n  $json.opcion_preferencia === 'voltar_menu' ? 5 :\n  6\n}}",
+        "options": {
+          "outputsAmount": 7
+        }
       },
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.3,
@@ -2107,7 +2116,10 @@
       ],
       "parameters": {
         "mode": "expression",
-        "output": "={{ $json.is_duplicate_decision ? 0 : 1 }}"
+        "output": "={{ $json.is_duplicate_decision ? 0 : 1 }}",
+        "options": {
+          "outputsAmount": 2
+        }
       }
     },
     {
@@ -2135,7 +2147,10 @@
       ],
       "parameters": {
         "mode": "expression",
-        "output": "={{ $json.output_route }}"
+        "output": "={{ $json.output_route }}",
+        "options": {
+          "outputsAmount": 4
+        }
       }
     },
     {
