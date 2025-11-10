@@ -122,7 +122,7 @@
         "promptType": "define",
         "text": "={{ $json.message }}",
         "options": {
-          "systemMessage": "🍽️ Você é Frepi, assistente de compras por WhatsApp!\n\n🎯 MISSÃO: Completar o cadastro do restaurante\n\nPRIMEIRA MENSAGEM (se for novo usuário):\n\"Olá! Prazer em te conhecer! 😊\nSou o Frepi, seu assistente de compras.\n\nAntes de começar, vou precisar de algumas informações básicas.\nQual é o nome do seu restaurante?\"\n\nDADOS A COLETAR (nesta ordem):\n1. Nome do restaurante\n2. Nome da pessoa de contato  \n3. Cidade\n4. Tipo de negócio (Restaurante, Padaria, Cafeteria, Bar, Hotel, etc.)\n\nREGRAS:\n- UMA pergunta por vez\n- Seja natural e amigável (não robotizado!)\n- Se já cumprimentou = NÃO cumprimente de novo\n- Se o usuário der vários dados juntos = aceite todos\n- Use emojis relevantes: 🍽️ 📍 👤\n\nFORMATO FINAL (quando tiver TODOS os 4 dados):\nCADASTRO_COMPLETO\nNome Restaurante: [nome]\nNome Contato: [nome]\nCidade: [cidade]\nTipo: [tipo]\n\n✅ Perfeito! Cadastro completo!\n\nPerfeito! Cadastro completo! 🎉\n\n📦 Você já pode usar o Frepi para:\n1️⃣ Fazer compras inteligentes\n2️⃣ Cadastrar preços\n3️⃣ Gerenciar fornecedores\n\nPara começar, envie sua lista de compras ou digite \"menu\" 😊\n\nTOM: Natural, casual, brasileiro. Como um amigo prestativo, não um robô."
+          "systemMessage": "🍽️ Você é Frepi, assistente de compras por WhatsApp!\n\n🎯 MISSÃO: Completar o cadastro do restaurante\n\nPRIMEIRA MENSAGEM (se for novo usuário):\n\"Olá! Prazer em te conhecer! 😊\nSou o Frepi, seu assistente de compras.\n\nAntes de começar, vou precisar de algumas informações básicas.\nQual é o nome do seu restaurante?\"\n\nDADOS A COLETAR (nesta ordem):\n1. Nome do restaurante\n2. Nome da pessoa de contato  \n3. Cidade\n4. Tipo de negócio (Restaurante, Padaria, Cafeteria, Bar, Hotel, etc.)\n\nREGRAS:\n- UMA pergunta por vez\n- Seja natural e amigável (não robotizado!)\n- Se já cumprimentou = NÃO cumprimente de novo\n- Se o usuário der vários dados juntos = aceite todos\n- Use emojis relevantes: 🍽️ 📍 👤\n\nFORMATO FINAL (quando tiver TODOS os 4 dados):\nCADASTRO_COMPLETO\nNome Restaurante: [nome]\nNome Contato: [nome]\nCidade: [cidade]\nTipo: [tipo]\n\n✅ Perfeito! Cadastro completo!\n\nAgora você pode usar o Frepi. Digite \"menu\" para ver as opções disponíveis.\n\nTOM: Natural, casual, brasileiro. Como um amigo prestativo, não um robô."
         },
         "model": {
           "__rl": {
@@ -769,6 +769,13 @@
             "mode": "name",
             "cachedResultName": "OpenAI Chat Model1"
           }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Simple Memory1",
+            "mode": "name",
+            "cachedResultName": "Simple Memory1"
+          }
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1115,6 +1122,13 @@
             "mode": "name",
             "cachedResultName": "OpenAI Chat Model3"
           }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Simple Memory3",
+            "mode": "name",
+            "cachedResultName": "Simple Memory3"
+          }
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1419,13 +1433,20 @@
         "promptType": "define",
         "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
         "options": {
-          "systemMessage": "💰 Você é Frepi, especialista em cadastrar preços.\n\n🎯 MISSÃO: Receber e cadastrar listas de preços dos fornecedores\n\nO QUE VOCÊ PRECISA EXTRAIR:\nPara cada produto:\n1. Nome do produto\n2. Fornecedor\n3. Preço (valor numérico)\n4. Unidade (kg, litro, unidade, caixa, etc.)\n\n📝 FORMATOS ACEITOS:\n\nFORMATO A (Texto livre):\n\"Leite Piracanjuba 4.50/L\nArroz Tio João 5.20/kg\nFeijão Camil 6.80/kg\"\n\nFORMATO B (Estruturado):\n\"Fornecedor: Piracanjuba\n- Leite 4.50/L\n- Queijo 18.00/kg\n\nFornecedor: Tio João\n- Arroz 5.20/kg\"\n\nINSTRUÇÕES:\n- Aceite QUALQUER formato de lista\n- Se algo não estiver claro, pergunte APENAS o que falta\n- Seja flexível com formatação\n- Use emojis: 💰 📦 ✅ ⚠️\n- SEMPRE confirme TODOS os dados antes de finalizar\n\n💡 DICA PROATIVA:\nSe o usuário enviar apenas 2-3 produtos, pergunte de forma natural:\n\"Legal! Vi que cadastrou [produtos]. Tem mais produtos desse fornecedor para cadastrar?\"\n\nFORMATO FINAL (quando tiver TODOS os dados confirmados):\nPRECOS_CONFIRMADOS\n[\n  {\n    \"produto\": \"Leite Integral\",\n    \"fornecedor\": \"Piracanjuba\",\n    \"preco\": 4.50,\n    \"unidade\": \"litro\"\n  },\n  {\n    \"produto\": \"Arroz Branco\",\n    \"fornecedor\": \"Tio João\",\n    \"preco\": 5.20,\n    \"unidade\": \"kg\"\n  }\n]\n\n✅ Perfeito! Recebi os preços. Vou cadastrar no sistema agora...\n\nTOM: Eficiente, claro, amigável. Máximo 3 linhas. Use emojis!\n\nSE USUÁRIO ENVIAR ALGO CONFUSO:\n\"⚠️ Não entendi bem. Pode me enviar no formato:\nProduto Fornecedor Preço/Unidade\n\nExemplo: Leite Piracanjuba 4.50/L\"\n"
+          "systemMessage": "💰 Você é Frepi, especialista em cadastrar preços.\n\n🎯 MISSÃO: Receber e cadastrar listas de preços dos fornecedores\n\nO QUE VOCÊ PRECISA EXTRAIR:\nPara cada produto:\n1. Nome do produto\n2. Fornecedor\n3. Preço (valor numérico)\n4. Unidade (kg, litro, unidade, caixa, etc.)\n\n📝 FORMATOS ACEITOS:\n\nFORMATO A (Texto livre):\n\"Leite Piracanjuba 4.50/L\nArroz Tio João 5.20/kg\nFeijão Camil 6.80/kg\"\n\nFORMATO B (Estruturado):\n\"Fornecedor: Piracanjuba\n- Leite 4.50/L\n- Queijo 18.00/kg\n\nFornecedor: Tio João\n- Arroz 5.20/kg\"\n\nINSTRUÇÕES:\n- Aceite QUALQUER formato de lista\n- Se algo não estiver claro, pergunte APENAS o que falta\n- Seja flexível com formatação\n- Use emojis: 💰 📦 ✅ ⚠️\n- SEMPRE confirme TODOS os dados antes de finalizar\n\n💡 DICA PROATIVA:\nSe o usuário enviar apenas 2-3 produtos, pergunte de forma natural:\n\"Legal! Vi que cadastrou [produtos]. Tem mais produtos desse fornecedor para cadastrar?\"\n\nFORMATO FINAL (quando tiver TODOS os dados confirmados):\nPRECOS_CONFIRMADOS\n[\n  {\n    \"produto\": \"Leite Integral\",\n    \"fornecedor\": \"Piracanjuba\",\n    \"preco\": 4.50,\n    \"unidade\": \"litro\"\n  },\n  {\n    \"produto\": \"Arroz Branco\",\n    \"fornecedor\": \"Tio João\",\n    \"preco\": 5.20,\n    \"unidade\": \"kg\"\n  }\n]\n\n✅ Pronto! Preços cadastrados com sucesso!\n\nTOM: Eficiente, claro, amigável. Máximo 3 linhas. Use emojis!\n\nSE USUÁRIO ENVIAR ALGO CONFUSO: \n\"⚠️ Não entendi bem. Pode me enviar no formato:\nProduto Fornecedor Preço/Unidade\n\nExemplo: Leite Piracanjuba 4.50/L\""
         },
         "model": {
           "__rl": {
             "value": "OpenAI Chat Model5",
             "mode": "name",
             "cachedResultName": "OpenAI Chat Model5"
+          }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Simple Memory5",
+            "mode": "name",
+            "cachedResultName": "Simple Memory5"
           }
         }
       },
@@ -1482,7 +1503,7 @@
     },
     {
       "parameters": {
-        "jsCode": "console.log('💰 [Precios] Starting execution...');\nconst agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('💰 [Detectar Precios] Output del agente:', agentOutput);\n\nconst isPricesComplete = agentOutput.includes('PRECOS_CONFIRMADOS');\n\nlet preciosData = [];\nlet outputLimpio = agentOutput;\n\nif (isPricesComplete) {\n  try {\n    const jsonMatch = agentOutput.match(/\\[\\s*\\{[\\s\\S]*?\\}\\s*\\]/);    if (jsonMatch) {\n      preciosData = JSON.parse(jsonMatch[0]);\n      console.log('✅ [Detectar Precios] Precios parseados:', preciosData.length);\n    }\n    \n    outputLimpio = agentOutput\n      .replace(/PRECOS_CONFIRMADOS/g, '')\n      .replace(/\\[\\s*\\{[\\s\\S]*?\\}\\s*\\]/g, '')\n      .trim();\n    \n    if (!outputLimpio || outputLimpio.length < 10) {\n      outputLimpio = 'Pronto! Preços cadastrados com sucesso! ✅';\n    }\n  } catch (error) {\n    console.error('❌ [Detectar Precios] Error parseando:', error);\n  }\n}\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    prices_complete: isPricesComplete,\n    prices_data: preciosData,\n    output: outputLimpio,\n    original_output: agentOutput\n  }\n}];"
+        "jsCode": "const agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('💰 [Detectar Precios] Output del agente:', agentOutput);\n\nconst isPricesComplete = agentOutput.includes('PRECOS_CONFIRMADOS');\n\nlet preciosData = [];\nlet outputLimpio = agentOutput;\n\nif (isPricesComplete) {\n  try {\n    const jsonMatch = agentOutput.match(/\\[\\s*\\{[\\s\\S]*?\\}\\s*\\]/);    if (jsonMatch) {\n      preciosData = JSON.parse(jsonMatch[0]);\n      console.log('✅ [Detectar Precios] Precios parseados:', preciosData.length);\n    }\n    \n    outputLimpio = agentOutput\n      .replace(/PRECOS_CONFIRMADOS/g, '')\n      .replace(/\\[\\s*\\{[\\s\\S]*?\\}\\s*\\]/g, '')\n      .trim();\n    \n    if (!outputLimpio || outputLimpio.length < 10) {\n      outputLimpio = 'Pronto! Preços cadastrados com sucesso! ✅';\n    }\n  } catch (error) {\n    console.error('❌ [Detectar Precios] Error parseando:', error);\n  }\n}\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    prices_complete: isPricesComplete,\n    prices_data: preciosData,\n    output: outputLimpio,\n    original_output: agentOutput\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1548,7 +1569,7 @@
     },
     {
       "parameters": {
-        "jsCode": "console.log('🛒 [Pedido] Starting execution...');\nconst agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\nconst restaurantId = $('Vector Search Products').first().json.restaurant_id;\n\nconsole.log('🛒 [Detectar Pedido] Analizando output del agente');\n\nconst isPedidoCompleto = agentOutput.includes('PEDIDO_COMPLETO');\n\nlet productos = [];\nlet outputLimpio = agentOutput;\n\nif (isPedidoCompleto) {\n  try {\n    const lines = agentOutput.split('\\n');\n    let inItems = false;\n    \n    for (const line of lines) {\n      if (line.includes('Itens:')) {\n        inItems = true;\n        continue;\n      }\n      if (line.includes('Fornecedor')) {\n        inItems = false;\n      }\n      if (inItems && line.trim().startsWith('-')) {\n        const match = line.match(/- (.+?):\\s*([\\d.]+)\\s*(\\w+)/);\n        if (match) {\n          productos.push({\n            produto: match[1].trim(),\n            quantidade: parseFloat(match[2]),\n            unidade: match[3]\n          });\n        }\n      }\n    }\n    \n    console.log(`✅ [Detectar Pedido] ${productos.length} produtos detectados`);\n    \n    outputLimpio = agentOutput\n      .replace(/PEDIDO_COMPLETO/g, '')\n      .trim();\n    \n  } catch (error) {\n    console.error('❌ [Detectar Pedido] Error parseando:', error);\n  }\n}\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    restaurant_id: restaurantId,\n    pedido_completo: isPedidoCompleto,\n    produtos: productos,\n    output: outputLimpio,\n    original_output: agentOutput\n  }\n}];"
+        "jsCode": "const agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\nconst restaurantId = $('Vector Search Products').first().json.restaurant_id;\n\nconsole.log('🛒 [Detectar Pedido] Analizando output del agente');\n\nconst isPedidoCompleto = agentOutput.includes('PEDIDO_COMPLETO');\n\nlet productos = [];\nlet outputLimpio = agentOutput;\n\nif (isPedidoCompleto) {\n  try {\n    const lines = agentOutput.split('\\n');\n    let inItems = false;\n    \n    for (const line of lines) {\n      if (line.includes('Itens:')) {\n        inItems = true;\n        continue;\n      }\n      if (line.includes('Fornecedor')) {\n        inItems = false;\n      }\n      if (inItems && line.trim().startsWith('-')) {\n        const match = line.match(/- (.+?):\\s*([\\d.]+)\\s*(\\w+)/);\n        if (match) {\n          productos.push({\n            produto: match[1].trim(),\n            quantidade: parseFloat(match[2]),\n            unidade: match[3]\n          });\n        }\n      }\n    }\n    \n    console.log(`✅ [Detectar Pedido] ${productos.length} produtos detectados`);\n    \n    outputLimpio = agentOutput\n      .replace(/PEDIDO_COMPLETO/g, '')\n      .trim();\n    \n  } catch (error) {\n    console.error('❌ [Detectar Pedido] Error parseando:', error);\n  }\n}\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    restaurant_id: restaurantId,\n    pedido_completo: isPedidoCompleto,\n    produtos: productos,\n    output: outputLimpio,\n    original_output: agentOutput\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1614,7 +1635,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\nconsole.log('💎 [Recomendación] Starting execution...');\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Generar Recomendación] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Generar Recomendación',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const resultados = $input.first().json.resultados;\nconst phoneNumber = $input.first().json.phone_number;\nconst priceSensitivity = $input.first().json.price_sensitivity;\n\nconsole.log('💎 [Generar Recomendación] Creando mensaje para usuario');\n\nlet mensaje = '🎯 *RECOMENDAÇÃO*\\n\\n';\n\nlet totalEstimado = 0;\nlet fornecedorPrincipal = null;\nconst fornecedoresUsados = new Set();\n\nfor (const item of resultados) {\n  if (item.no_encontrado) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Produto não encontrado no catálogo.\\n\\n`;\n    continue;\n  }\n  \n  if (item.sin_precios) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Sem preços cadastrados.\\n\\n`;\n    continue;\n  }\n  \n  const mejor = item.mejor_opcion;\n  const subtotal = mejor.price * item.quantidade;\n  totalEstimado += subtotal;\n  \n  fornecedoresUsados.add(mejor.supplier_name);\n  \n  mensaje += `✅ ${item.produto} ${item.quantidade}${item.unidade} → ${mejor.supplier_name}`;\n  if (mejor.is_preferred) mensaje += ' ⭐';\n  mensaje += `\\n   R$ ${mejor.price.toFixed(2)}/${mejor.unit} = R$ ${subtotal.toFixed(2)}\\n\\n`;\n  mensaje += `📦 ${item.quantidade} ${item.unidade}\\n`;\n  mensaje += `🏪 *${mejor.supplier_name}*`;\n  if (mejor.is_preferred) mensaje += ' ⭐ (Preferido)';\n  mensaje += `\\n💰 R$ ${mejor.price.toFixed(2)}/${mejor.unit}`;\n  mensaje += ` = *R$ ${subtotal.toFixed(2)}*\\n`;\n  \n  // Mostrar alternativas si hay\n  if (item.opciones.length > 1) {\n    for (let i = 1; i < Math.min(3, item.opciones.length); i++) {\n      const alt = item.opciones[i];\n      const diff = ((alt.price - mejor.price) / mejor.price * 100).toFixed(0);\n      const signo = diff > 0 ? '+' : '';\n      mensaje += `   • ${alt.supplier_name}: R$ ${alt.price.toFixed(2)} (${signo}${diff}%)\\n`;\n    }\n  }\n  \n  mensaje += '\\n';\n}\n\nmensaje += `━━━━━━━━━━━━━━━━\\n`;\nmensaje += `💵 *TOTAL ESTIMADO: R$ ${totalEstimado.toFixed(2)}*\\n\\n`;\n\nif (fornecedoresUsados.size === 1) {\n  mensaje += `✨ Você pode fazer tudo com *${[...fornecedoresUsados][0]}*!\\n\\n`;\n} else {\n  mensaje += `📋 Fornecedores sugeridos: ${[...fornecedoresUsados].join(', ')}\\n\\n`;\n}\n\n// Explicar criterio\nif (priceSensitivity < 0.4) {\n  mensaje += '💡 _Priorizei menor preço_\\n';\n} else if (priceSensitivity > 0.6) {\n  mensaje += '💡 _Priorizei qualidade e fornecedores preferidos_\\n';\n} else {\n  mensaje += '💡 _Priorizei equilíbrio entre preço e qualidade_\\n';\n}\n\nmensaje += '\\nEsta é uma recomendação. Você precisa fazer o pedido diretamente com os fornecedores? 👍';\n\nconsole.log('✅ [Generar Recomendación] Mensaje creado');\n\n// Agregar nota si hay precios desactualizados\nif (hayProblemas) {\n  mensaje += `\\n\\n⚠️ *Nota Importante*\n\nAlguns preços estão desatualizados (> 30 dias).\nRecomendo atualizar seus preços para recomendações mais precisas.\n\nDigite \"2\" para atualizar preços agora.`;\n}\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber,\n    total_estimado: totalEstimado,\n    fornecedores: [...fornecedoresUsados]\n  }\n}];\n\n} catch (error) {\n  console.error(`[Generar Recomendación] Error: ${error.message}`);\n  console.error(`[Generar Recomendación] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Generar Recomendación',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Generar Recomendación] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Generar Recomendación',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const resultados = $input.first().json.resultados;\nconst phoneNumber = $input.first().json.phone_number;\nconst priceSensitivity = $input.first().json.price_sensitivity;\n\nconsole.log('💎 [Generar Recomendación] Creando mensaje para usuario');\n\nlet mensaje = '🎯 *RECOMENDAÇÃO DE COMPRA*\\n\\n';\n\nlet totalEstimado = 0;\nlet fornecedorPrincipal = null;\nconst fornecedoresUsados = new Set();\n\nfor (const item of resultados) {\n  if (item.no_encontrado) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Produto não encontrado no catálogo.\\n\\n`;\n    continue;\n  }\n  \n  if (item.sin_precios) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Sem preços cadastrados.\\n\\n`;\n    continue;\n  }\n  \n  const mejor = item.mejor_opcion;\n  const subtotal = mejor.price * item.quantidade;\n  totalEstimado += subtotal;\n  \n  fornecedoresUsados.add(mejor.supplier_name);\n  \n  mensaje += `✅ *${item.produto}*\\n`;\n  mensaje += `📦 ${item.quantidade} ${item.unidade}\\n`;\n  mensaje += `🏪 *${mejor.supplier_name}*`;\n  if (mejor.is_preferred) mensaje += ' ⭐ (Preferido)';\n  mensaje += `\\n💰 R$ ${mejor.price.toFixed(2)}/${mejor.unit}`;\n  mensaje += ` = *R$ ${subtotal.toFixed(2)}*\\n`;\n  \n  // Mostrar alternativas si hay\n  if (item.opciones.length > 1) {\n    mensaje += `\\n_Outras opções:_\\n`;\n    for (let i = 1; i < Math.min(3, item.opciones.length); i++) {\n      const alt = item.opciones[i];\n      const diff = ((alt.price - mejor.price) / mejor.price * 100).toFixed(0);\n      const signo = diff > 0 ? '+' : '';\n      mensaje += `   • ${alt.supplier_name}: R$ ${alt.price.toFixed(2)} (${signo}${diff}%)\\n`;\n    }\n  }\n  \n  mensaje += '\\n';\n}\n\nmensaje += `━━━━━━━━━━━━━━━━\\n`;\nmensaje += `💵 *TOTAL ESTIMADO: R$ ${totalEstimado.toFixed(2)}*\\n\\n`;\n\nif (fornecedoresUsados.size === 1) {\n  mensaje += `✨ Você pode fazer tudo com *${[...fornecedoresUsados][0]}*!\\n\\n`;\n} else {\n  mensaje += `📋 Fornecedores sugeridos: ${[...fornecedoresUsados].join(', ')}\\n\\n`;\n}\n\n// Explicar criterio\nif (priceSensitivity < 0.4) {\n  mensaje += '💡 _Priorizei menor preço_\\n';\n} else if (priceSensitivity > 0.6) {\n  mensaje += '💡 _Priorizei qualidade e fornecedores preferidos_\\n';\n} else {\n  mensaje += '💡 _Priorizei equilíbrio entre preço e qualidade_\\n';\n}\n\nmensaje += '\\nEsta é uma recomendação. Você precisa fazer o pedido diretamente com os fornecedores? 👍';\n\nconsole.log('✅ [Generar Recomendación] Mensaje creado');\n\n// Agregar nota si hay precios desactualizados\nif (hayProblemas) {\n  mensaje += `\\n\\n⚠️ *Nota Importante*\n\nAlguns preços estão desatualizados (> 30 dias).\nRecomendo atualizar seus preços para recomendações mais precisas.\n\nDigite \"2\" para atualizar preços agora.`;\n}\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber,\n    total_estimado: totalEstimado,\n    fornecedores: [...fornecedoresUsados]\n  }\n}];\n\n} catch (error) {\n  console.error(`[Generar Recomendación] Error: ${error.message}`);\n  console.error(`[Generar Recomendación] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Generar Recomendación',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1693,7 +1714,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 🔍 Validar disponibilidad de precios antes de procesar pedido\nconst productos = $input.first().json.produtos;\nconst restaurantId = $input.first().json.restaurant_id;\nconst phoneNumber = $input.first().json.phone_number;\n\nconsole.log(`🔍 [Validar Precios] Verificando ${productos.length} productos`);\n\nconst resultados = [];\nlet hayProblemas = false;\n\nfor (const producto of productos) {\n  try {\n    // Buscar producto en master_list\n    const { data: masterProducts } = await $supabase\n      .from('master_list')\n      .select('id, product_name')\n      .ilike('product_name', `%${producto.produto}%`)\n      .limit(1);\n    \n    if (!masterProducts || masterProducts.length === 0) {\n      resultados.push({\n        produto: producto.produto,\n        problema: 'no_encontrado',\n        mensaje: `Produto \"${produto.produto}\" não encontrado no catálogo`\n      });\n      hayProblemas = true;\n      console.log(`⚠️ Produto no encontrado: ${produto.produto}`);\n      continue;\n    }\n    \n    const masterListId = masterProducts[0].id;\n    \n    // Verificar precios recientes (< 30 días)\n    const fechaLimite = new Date();\n    fechaLimite.setDate(fechaLimite.getDate() - parseInt($('Config Global').first().json.PRICE_VALIDITY_DAYS));\n    \n    const { data: recentPrices, error } = await $supabase\n      .from('pricing_history')\n      .select('id, supplier_id, unit_price, effective_date, suppliers(company_name)')\n      .eq('master_list_id', masterListId)\n      .gte('effective_date', fechaLimite.toISOString())\n      .order('effective_date', { ascending: false })\n      .limit(5);\n    \n    if (!recentPrices || recentPrices.length === 0) {\n      // Buscar el precio más reciente aunque sea antiguo\n      const { data: oldestPrice } = await $supabase\n        .from('pricing_history')\n        .select('effective_date, suppliers(company_name)')\n        .eq('master_list_id', masterListId)\n        .order('effective_date', { ascending: false })\n        .limit(1)\n        .single();\n      \n      if (oldestPrice) {\n        const diasAtras = Math.floor((Date.now() - new Date(oldestPrice.effective_date)) / (1000 * 60 * 60 * 24));\n        resultados.push({\n          produto: produto.produto,\n          problema: 'precos_desatualizados',\n          dias_atras: diasAtras,\n          ultimo_fornecedor: oldestPrice.suppliers?.company_name,\n          mensaje: `Preços desatualizados (há ${diasAtras} dias)`\n        });\n        hayProblemas = true;\n        console.log(`⚠️ Preços antigos para ${produto.produto}: ${diasAtras} días`);\n      } else {\n        resultados.push({\n          produto: produto.produto,\n          problema: 'sin_precios',\n          mensaje: 'Sem preços cadastrados.\\nDigite \"2\" para cadastrar preços agora'\n        });\n        hayProblemas = true;\n        console.log(`⚠️ Sin precios: ${produto.produto}`);\n      }\n    } else {\n      resultados.push({\n        produto: produto.produto,\n        problema: null,\n        precos_encontrados: recentPrices.length,\n        mensaje: `✅ ${recentPrices.length} preços atualizados`\n      });\n      console.log(`✅ Preços OK para ${produto.produto}: ${recentPrices.length} opciones`);\n    }\n    \n  } catch (error) {\n    console.error(`❌ Error validando ${producto.produto}:`, error);\n    resultados.push({\n      produto: producto.produto,\n      problema: 'erro',\n      mensaje: 'Erro ao verificar preços'\n    });\n    hayProblemas = true;\n  }\n}\n\nconsole.log(`🔍 [Validar Precios] Problemas detectados: ${hayProblemas}`);\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    restaurant_id: restaurantId,\n    produtos: productos,\n    validacion: resultados,\n    hay_problemas: hayProblemas,\n    puede_continuar: true  // Opción B: siempre permitir\n  }\n}];",
+        "jsCode": "// 🔍 Validar disponibilidad de precios antes de procesar pedido\nconst productos = $input.first().json.produtos;\nconst restaurantId = $input.first().json.restaurant_id;\nconst phoneNumber = $input.first().json.phone_number;\n\nconsole.log(`🔍 [Validar Precios] Verificando ${productos.length} productos`);\n\nconst resultados = [];\nlet hayProblemas = false;\n\nfor (const producto of productos) {\n  try {\n    // Buscar producto en master_list\n    const { data: masterProducts } = await $supabase\n      .from('master_list')\n      .select('id, product_name')\n      .ilike('product_name', `%${producto.produto}%`)\n      .limit(1);\n    \n    if (!masterProducts || masterProducts.length === 0) {\n      resultados.push({\n        produto: producto.produto,\n        problema: 'no_encontrado',\n        mensaje: `Produto \"${produto.produto}\" não encontrado no catálogo`\n      });\n      hayProblemas = true;\n      console.log(`⚠️ Produto no encontrado: ${produto.produto}`);\n      continue;\n    }\n    \n    const masterListId = masterProducts[0].id;\n    \n    // Verificar precios recientes (< 30 días)\n    const fechaLimite = new Date();\n    fechaLimite.setDate(fechaLimite.getDate() - parseInt($('Config Global').first().json.PRICE_VALIDITY_DAYS));\n    \n    const { data: recentPrices, error } = await $supabase\n      .from('pricing_history')\n      .select('id, supplier_id, unit_price, effective_date, suppliers(company_name)')\n      .eq('master_list_id', masterListId)\n      .gte('effective_date', fechaLimite.toISOString())\n      .order('effective_date', { ascending: false })\n      .limit(5);\n    \n    if (!recentPrices || recentPrices.length === 0) {\n      // Buscar el precio más reciente aunque sea antiguo\n      const { data: oldestPrice } = await $supabase\n        .from('pricing_history')\n        .select('effective_date, suppliers(company_name)')\n        .eq('master_list_id', masterListId)\n        .order('effective_date', { ascending: false })\n        .limit(1)\n        .single();\n      \n      if (oldestPrice) {\n        const diasAtras = Math.floor((Date.now() - new Date(oldestPrice.effective_date)) / (1000 * 60 * 60 * 24));\n        resultados.push({\n          produto: produto.produto,\n          problema: 'precos_desatualizados',\n          dias_atras: diasAtras,\n          ultimo_fornecedor: oldestPrice.suppliers?.company_name,\n          mensaje: `Preços desatualizados (há ${diasAtras} dias)`\n        });\n        hayProblemas = true;\n        console.log(`⚠️ Preços antigos para ${produto.produto}: ${diasAtras} días`);\n      } else {\n        resultados.push({\n          produto: produto.produto,\n          problema: 'sin_precios',\n          mensaje: 'Sem preços cadastrados'\n        });\n        hayProblemas = true;\n        console.log(`⚠️ Sin precios: ${produto.produto}`);\n      }\n    } else {\n      resultados.push({\n        produto: produto.produto,\n        problema: null,\n        precos_encontrados: recentPrices.length,\n        mensaje: `✅ ${recentPrices.length} preços atualizados`\n      });\n      console.log(`✅ Preços OK para ${produto.produto}: ${recentPrices.length} opciones`);\n    }\n    \n  } catch (error) {\n    console.error(`❌ Error validando ${producto.produto}:`, error);\n    resultados.push({\n      produto: producto.produto,\n      problema: 'erro',\n      mensaje: 'Erro ao verificar preços'\n    });\n    hayProblemas = true;\n  }\n}\n\nconsole.log(`🔍 [Validar Precios] Problemas detectados: ${hayProblemas}`);\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    restaurant_id: restaurantId,\n    produtos: productos,\n    validacion: resultados,\n    hay_problemas: hayProblemas,\n    puede_continuar: true  // Opción B: siempre permitir\n  }\n}];",
         "credentials": {
           "supabaseApi": {
             "id": "YaSYB0r907WCaDZK",
@@ -1813,6 +1834,13 @@
             "mode": "name",
             "cachedResultName": "OpenAI Config Produtos"
           }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Memory Config Produtos",
+            "mode": "name",
+            "cachedResultName": "Memory Config Produtos"
+          }
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1899,6 +1927,13 @@
             "mode": "name",
             "cachedResultName": "OpenAI Register Fornecedor"
           }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Memory Register Fornecedor",
+            "mode": "name",
+            "cachedResultName": "Memory Register Fornecedor"
+          }
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1954,7 +1989,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 🔍 Detectar si cadastro de fornecedor está completo\nconsole.log('📦 [Fornecedor] Starting execution...');\nconst agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('🔍 [Detect Fornecedor] Analizando output');\n\nconst isComplete = agentOutput.includes('FORNECEDOR_CADASTRADO');\n\nlet dadosFornecedor = {\n  nome: null,\n  telefone: null,\n  dias: null,\n  produtos: []\n};\n\nif (isComplete) {\n  try {\n    const lines = agentOutput.split('\\n');\n    for (const line of lines) {\n      if (line.includes('Nome:')) {\n        dadosFornecedor.nome = line.split(':')[1].trim();\n      }\n      if (line.includes('Telefone:')) {\n        dadosFornecedor.telefone = line.split(':')[1].trim();\n      }\n      if (line.includes('Dias:')) {\n        dadosFornecedor.dias = line.split(':')[1].trim();\n      }\n      if (line.includes('Produtos:')) {\n        const produtosStr = line.split(':')[1].trim();\n        dadosFornecedor.produtos = produtosStr.split(',').map(p => p.trim());\n      }\n    }\n    console.log('✅ [Detect Fornecedor] Datos extraídos:', dadosFornecedor);\n  } catch (error) {\n    console.error('❌ [Detect Fornecedor] Error parsing:', error);\n  }\n}\n\nconst outputLimpio = agentOutput\n  .replace(/FORNECEDOR_CADASTRADO/g, '')\n  .replace(/Nome:.*\\n/g, '')\n  .replace(/Telefone:.*\\n/g, '')\n  .replace(/Dias:.*\\n/g, '')\n  .replace(/Produtos:.*\\n/g, '')\n  .trim();\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    cadastro_completo: isComplete,\n    dados_fornecedor: dadosFornecedor,\n    output: outputLimpio || agentOutput\n  }\n}];"
+        "jsCode": "// 🔍 Detectar si cadastro de fornecedor está completo\nconst agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('🔍 [Detect Fornecedor] Analizando output');\n\nconst isComplete = agentOutput.includes('FORNECEDOR_CADASTRADO');\n\nlet dadosFornecedor = {\n  nome: null,\n  telefone: null,\n  dias: null,\n  produtos: []\n};\n\nif (isComplete) {\n  try {\n    const lines = agentOutput.split('\\n');\n    for (const line of lines) {\n      if (line.includes('Nome:')) {\n        dadosFornecedor.nome = line.split(':')[1].trim();\n      }\n      if (line.includes('Telefone:')) {\n        dadosFornecedor.telefone = line.split(':')[1].trim();\n      }\n      if (line.includes('Dias:')) {\n        dadosFornecedor.dias = line.split(':')[1].trim();\n      }\n      if (line.includes('Produtos:')) {\n        const produtosStr = line.split(':')[1].trim();\n        dadosFornecedor.produtos = produtosStr.split(',').map(p => p.trim());\n      }\n    }\n    console.log('✅ [Detect Fornecedor] Datos extraídos:', dadosFornecedor);\n  } catch (error) {\n    console.error('❌ [Detect Fornecedor] Error parsing:', error);\n  }\n}\n\nconst outputLimpio = agentOutput\n  .replace(/FORNECEDOR_CADASTRADO/g, '')\n  .replace(/Nome:.*\\n/g, '')\n  .replace(/Telefone:.*\\n/g, '')\n  .replace(/Dias:.*\\n/g, '')\n  .replace(/Produtos:.*\\n/g, '')\n  .trim();\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    cadastro_completo: isComplete,\n    dados_fornecedor: dadosFornecedor,\n    output: outputLimpio || agentOutput\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2056,6 +2091,20 @@
       }
     },
     {
+      "id": "DETECTAR_OPCAO_CONTINUACAO",
+      "name": "Detectar Opção Continuação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        2928
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Detectar Opção Continuação] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Detectar Opção Continuação',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const mensaje = $input.first().json.message.toLowerCase();\nconst usuario = $input.first().json;\n\nconsole.log(`🔍 [Continuação] Mensaje: \"${mensaje}\"`);\n\n// Opción 1: Fazer outra compra\nif (mensaje.includes('1') ||\n    mensaje.includes('compra') ||\n    mensaje.includes('pedido') ||\n    mensaje.includes('fazer compra') ||\n    mensaje.includes('outra compra')) {\n  console.log('✅ [Continuação] Detectado: FAZER_COMPRA');\n  return [{\n    json: {\n      ...usuario,\n      continuation_action: 'FAZER_COMPRA',\n      output_route: 0\n    }\n  }];\n}\n\n// Opción 2: Atualizar preços\nif (mensaje.includes('2') ||\n    mensaje.includes('preço') ||\n    mensaje.includes('atualizar') ||\n    mensaje.includes('cadastrar preço')) {\n  console.log('✅ [Continuação] Detectado: ATUALIZAR_PRECOS');\n  return [{\n    json: {\n      ...usuario,\n      continuation_action: 'ATUALIZAR_PRECOS',\n      output_route: 1\n    }\n  }];\n}\n\n// Opción 3: Registrar fornecedor\nif (mensaje.includes('3') ||\n    mensaje.includes('fornecedor') ||\n    mensaje.includes('registrar fornecedor')) {\n  console.log('✅ [Continuação] Detectado: REGISTRAR_FORNECEDOR');\n  return [{\n    json: {\n      ...usuario,\n      continuation_action: 'REGISTRAR_FORNECEDOR',\n      output_route: 2\n    }\n  }];\n}\n\n// Opción 4 o por defecto: Ver menú principal\nif (mensaje.includes('4') ||\n    mensaje.includes('menu') ||\n    mensaje.includes('voltar') ||\n    mensaje.includes('não') ||\n    mensaje.includes('nao')) {\n  console.log('✅ [Continuação] Detectado: MOSTRAR_MENU');\n  return [{\n    json: {\n      ...usuario,\n      continuation_action: 'MOSTRAR_MENU',\n      output_route: 3\n    }\n  }];\n}\n\n// Por defecto, volver al menú\nconsole.log('⚠️ [Continuação] Opción no reconocida, volviendo al menú');\nreturn [{\n  json: {\n    ...usuario,\n    continuation_action: 'MOSTRAR_MENU',\n    output_route: 3\n  }\n}];\n\n} catch (error) {\n  console.error(`[Detectar Opção Continuação] Error: ${error.message}`);\n  console.error(`[Detectar Opção Continuação] Stack: ${error.stack}`);\n\n\n  // 🔄 Resetear flag de continuación en la base de datos\n  await $supabase\n    .from('line_sessions')\n    .update({ awaiting_continuation: false })\n    .eq('user_id', usuario.user_id);\n\n  console.log('✅ [Detectar Continuação] Reset awaiting_continuation = false');\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Detectar Opção Continuação',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      }
+    },
+    {
       "id": "ROUTER_CONTINUACAO",
       "name": "Router Continuação",
       "type": "n8n-nodes-base.switch",
@@ -2068,7 +2117,7 @@
         "mode": "expression",
         "output": "={{ $json.output_route }}",
         "options": {
-          "outputsAmount": 4
+          "outputsAmount": 2
         }
       }
     },
@@ -2219,56 +2268,6 @@
       "position": [
         1676,
         608
-      ]
-    },
-    {
-      "parameters": {
-        "options": {}
-      },
-      "id": "openai_continuacion_1762815732",
-      "name": "OpenAI Chat Model - Continuacion",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1,
-      "position": [
-        2500,
-        3028
-      ]
-    },
-    {
-      "name": "Agente Detectar Intención",
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 1.6,
-      "parameters": {
-        "promptType": "define",
-        "text": "={{ $json.message }}",
-        "options": {
-          "systemMessage": "Você é um detector de intenção.\n\nAnalise a mensagem do usuário e identifique o que ele quer fazer:\n\nOPÇÕES DISPONÍVEIS:\n1. FAZER_COMPRA - quer fazer compra/pedido\n2. ATUALIZAR_PRECOS - quer cadastrar/atualizar preços\n3. REGISTRAR_FORNECEDOR - quer cadastrar fornecedor\n4. MOSTRAR_MENU - quer ver menu ou encerrar\n\nREGRAS:\n- Seja flexível com variações de linguagem\n- \"1\", \"um\", \"fazer compra\", \"comprar\", \"pedido\" → FAZER_COMPRA\n- \"2\", \"dois\", \"preços\", \"precos\", \"atualizar\" → ATUALIZAR_PRECOS\n- \"3\", \"três\", \"tres\", \"fornecedor\", \"cadastrar\" → REGISTRAR_FORNECEDOR\n- \"4\", \"quatro\", \"menu\", \"não\", \"nao\", \"voltar\" → MOSTRAR_MENU\n\nRetorne APENAS o código da ação (ex: FAZER_COMPRA)\n\nMensagem: {{ $json.message }}"
-        },
-        "model": {
-          "__rl": {
-            "value": "OpenAI Chat Model - Continuacion",
-            "mode": "name",
-            "cachedResultName": "OpenAI Chat Model - Continuacion"
-          }
-        }
-      },
-      "id": "agente_continuacion_1762815732",
-      "position": [
-        2200,
-        2928
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Extraer intención del agente AI\nconst agentOutput = $input.first().json.output.trim().toUpperCase();\nconst usuario = $('Buscar Sesión Activa').first().json;\n\nconsole.log(`🎯 [Detectar Intención] Agent output: \"${agentOutput}\"`);\n\nlet outputRoute = 3; // Default: menu\nlet action = 'MOSTRAR_MENU';\n\nif (agentOutput.includes('FAZER_COMPRA')) {\n  outputRoute = 0;\n  action = 'FAZER_COMPRA';\n} else if (agentOutput.includes('ATUALIZAR_PRECOS')) {\n  outputRoute = 1;\n  action = 'ATUALIZAR_PRECOS';\n} else if (agentOutput.includes('REGISTRAR_FORNECEDOR')) {\n  outputRoute = 2;\n  action = 'REGISTRAR_FORNECEDOR';\n}\n\nconsole.log(`✅ [Detectar Intención] Acción: ${action}, Route: ${outputRoute}`);\n\n// Resetear flag de continuación\nawait $supabase\n  .from('line_sessions')\n  .update({ awaiting_continuation: false })\n  .eq('session_id', usuario.session_id);\n\nreturn [{\n  json: {\n    ...usuario,\n    continuation_action: action,\n    output_route: outputRoute\n  }\n}];"
-      },
-      "id": "extract_intention_1762815732",
-      "name": "Extraer Intención del Agente",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2500,
-        2928
       ]
     }
   ],
@@ -3301,6 +3300,17 @@
         ]
       ]
     },
+    "Detectar Opção Continuação": {
+      "main": [
+        [
+          {
+            "node": "Router Continuação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Router Continuação": {
       "main": [
         [
@@ -3370,7 +3380,7 @@
       "main": [
         [
           {
-            "node": "Agente Detectar Intención",
+            "node": "Detectar Opção Continuação",
             "type": "main",
             "index": 0
           }
@@ -3407,28 +3417,6 @@
         [
           {
             "node": "Enviar Respuesta",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Agente Detectar Intención": {
-      "main": [
-        [
-          {
-            "node": "Extraer Intención del Agente",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extraer Intención del Agente": {
-      "main": [
-        [
-          {
-            "node": "Router Continuação",
             "type": "main",
             "index": 0
           }
