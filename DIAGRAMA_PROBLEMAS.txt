@@ -1,0 +1,439 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    DIAGRAMA DE PROBLEMAS - Workflow Frepi
+═══════════════════════════════════════════════════════════════════════════════
+
+FLUJO ACTUAL (CON PROBLEMAS) 🔴
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────┐
+│ WhatsApp Trigger│
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Config Global  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────┐
+│ Extraer Datos WA    │
+└──────────┬──────────┘
+           │
+           ▼
+    ┌──────────────────┐
+    │ ¿Archivo No      │
+    │  Soportado?      │
+    └──┬────────────┬──┘
+       │ NO         │ SI
+       ▼            └──────────────┐
+┌──────────────┐                   │
+│Buscar Usuario│                   │
+└──────┬───────┘                   │
+       │                           │
+       ▼                           │
+┌──────────────────┐               │
+│ ¿Usuario Existe? │               │
+└──┬──────────┬────┘               │
+   │ SI       │ NO                 │
+   │          │                    │
+   │          ▼                    │
+   │   ┌────────────────┐          │
+   │   │  Onboarding    │          │
+   │   │    Flow        │          │
+   │   └────────────────┘          │
+   │                               │
+   ▼                               │
+┌────────────────────┐             │
+│ Calcular %         │             │
+│ Preferencias       │             │
+└────────┬───────────┘             │
+         │                         │
+         ▼                         │
+┌────────────────────┐             │
+│ Verificar Setup    │             │
+│ Completo           │             │
+└────────┬───────────┘             │
+         │                         │
+         ▼                         │
+┌────────────────────┐             │
+│ ¿Setup Completo?   │             │
+└──┬──────────────┬──┘             │
+   │ SI           │ NO             │
+   │              │                │
+   ▼              ▼                │
+┌──────────────┐ ┌──────────────┐ │
+│Agente de     │ │Setup         │ │
+│Menú Principal│ │Preferencias  │ │
+└──────┬───────┘ └──────────────┘ │
+       │                           │
+       ▼                           │
+┌──────────────────┐               │
+│ Detectar Acción  │               │
+└────────┬─────────┘               │
+         │                         │
+         ▼                         │
+┌─────────────────────────────┐   │
+│    Router de Acciones       │   │
+│  (Distribuye por opción)    │   │
+└─┬───┬────┬──────────────┬───┘   │
+  │   │    │              │       │
+  ▼   ▼    ▼              ▼       │
+[1] [2]  [3]            [4]       │
+Comp Pref Prec         Forn       │
+ │   │    │              │        │
+ │   │    │              │        │
+ ▼   │    ▼              ▼        │
+Ses. │   Ses.          Agente     │
+Comp │   Precio        Registrar  │
+ │   │    │              │        │
+ ▼   │    ▼              │        │
+Vect │  Agente           │        │
+Sea. │  Subir            │        │
+ │   │    │              │        │
+ ▼   │    ▼              ▼        │
+Agen │  Detect.       Detect.     │
+Comp │  Precio        Forn.       │
+ │   │  Compl.        Compl.      │
+ ▼   │    │              │        │
+Dete │    ▼              ▼        │
+Pedi │  ¿Comp?        ¿Comp?      │
+ │   │   │ │            │ │       │
+ ▼   │   │ └──┐      ┌──┘ └──┐   │
+¿Com?│   │    │      │       │   │
+│ │  │   ▼    │      ▼       │   │
+│ │  │  Guard  │   Guardar   │   │
+│ │  │  Prec.  │   Forn.     │   │
+│ │  │   │     │      │       │   │
+│ │  │   │     │      ▼       │   │
+│ │  │   │     │   Check      │   │
+│ │  │   │     │   Dupl?      │   │
+│ │  │   │     │    │ │       │   │
+│ └──┼───┼─────┼────┘ └───┐   │   │
+│    │   │     │          │   │   │
+▼    ▼   ▼     ▼          ▼   ▼   ▼
+┌──────────────────────────────────┐
+│     Continuation Handler         │
+│   (Marca sesión completa)        │
+└───────────────┬──────────────────┘
+                │
+                ▼
+        ┌───────────────┐
+        │ Update Ses DB │
+        └───────┬───────┘
+                │
+                ▼
+        ┌───────────────┐
+        │Enviar Respues│◄─────────┐
+        └───────────────┘          │
+                │                  │
+                │                  │
+                ▼                  │
+        ┌───────────────┐          │
+        │   USUARIO     │          │
+        │   RESPONDE    │          │
+        └───────┬───────┘          │
+                │                  │
+                ▼                  │
+          ⚠️ PROBLEMA ⚠️           │
+                │                  │
+                X (NADA)           │
+                                   │
+   ┌──────────────────────────────┘
+   │
+   │  NODOS HUÉRFANOS (SIN CONEXIÓN):
+   │
+   ├─ ❌ Detectar Opção Continuação  [FLOTANDO]
+   │      │
+   │      ▼
+   │  ❌ Router Continuação [FLOTANDO]
+   │      ├─► Fazer Compra
+   │      ├─► Atualizar Preços
+   │      ├─► Registrar Forn
+   │      └─► Ver Menú
+   │
+   ├─ ❌ ¿Es Interacción de Menú? [FLOTANDO]
+   │      │
+   │      └─► Detectar Opción [FLOTANDO]
+   │             │
+   │             ▼
+   │          Router Opciones [FLOTANDO]
+   │
+   ├─ ❌ Global Error Handler [FLOTANDO]
+   │
+   └─ ❌ AI Error Handler [FLOTANDO]
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+FLUJO CORREGIDO (PROPUESTO) ✅
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────┐
+│ WhatsApp Trigger│
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Config Global  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────┐
+│ Extraer Datos WA    │
+└──────────┬──────────┘
+           │
+           ▼
+    ┌──────────────────┐
+    │ ¿Archivo No      │
+    │  Soportado?      │
+    └──┬────────────┬──┘
+       │ NO         │ SI
+       ▼            └──────────────────────┐
+┌──────────────┐                          │
+│Buscar Usuario│                          │
+└──────┬───────┘                          │
+       │                                  │
+       ▼                                  │
+┌──────────────────┐                      │
+│ ¿Usuario Existe? │                      │
+└──┬──────────┬────┘                      │
+   │ SI       │ NO                        │
+   │          │                           │
+   │          ▼                           │
+   │   ┌────────────────┐                 │
+   │   │  Onboarding    │                 │
+   │   │    Flow        │                 │
+   │   └────────────────┘                 │
+   │                                      │
+   ▼                                      │
+┌────────────────────────┐  ✅ NUEVO      │
+│  Verificar Si Es       │                │
+│    Continuación        │                │
+│ (Busca sesión reciente)│                │
+└────────┬───────────────┘                │
+         │                                │
+         ▼                                │
+┌────────────────────┐                    │
+│ ¿Es Continuación?  │                    │
+└──┬──────────────┬──┘                    │
+   │ SI           │ NO                    │
+   │              │                       │
+   │              ▼                       │
+   │     ┌────────────────┐               │
+   │     │ Calcular %     │               │
+   │     │ Preferencias   │               │
+   │     └────────┬───────┘               │
+   │              │                       │
+   │              ▼                       │
+   │     ┌────────────────┐               │
+   │     │ Verificar      │               │
+   │     │ Setup Completo │               │
+   │     └────────┬───────┘               │
+   │              │                       │
+   │              ▼                       │
+   │     ┌────────────────┐               │
+   │     │ ¿Setup         │               │
+   │     │  Completo?     │               │
+   │     └──┬───────────┬─┘               │
+   │        │ SI        │ NO              │
+   │        │           │                 │
+   │        ▼           ▼                 │
+   │     ┌─────┐   ┌────────┐            │
+   │     │Agente   │Setup   │            │
+   │     │Menú │   │Prefer. │            │
+   │     └──┬──┘   └────────┘            │
+   │        │                            │
+   │        ▼                            │
+   │     ┌──────────┐                    │
+   │     │ Detectar │                    │
+   │     │ Acción   │                    │
+   │     └────┬─────┘                    │
+   │          │                          │
+   │          ▼                          │
+   │     ┌────────────┐                  │
+   │     │  Router    │                  │
+   │     │ Acciones   │                  │
+   │     └─┬──┬───┬─┬─┘                  │
+   │       │  │   │ │                    │
+   │      [Compra, Pref, Prec, Forn]    │
+   │       │  │   │ │                    │
+   │       │  └───┴─┴────────┐           │
+   │       │                 │           │
+   │       │              (flujos...)    │
+   │       │                 │           │
+   │       │                 ▼           │
+   │       │      ┌────────────────┐     │
+   │       │      │ Continuation   │     │
+   │       │      │   Handler      │     │
+   │       │      └────────┬───────┘     │
+   │       │               │             │
+   │       │               ▼             │
+   │       │      ┌────────────────┐     │
+   │       │      │ Update Ses DB  │     │
+   │       │      │ (awaiting_cont │     │
+   │       │      │   = true)      │     │
+   │       │      └────────┬───────┘     │
+   │       │               │             │
+   │       │               ▼             │
+   │       │      ┌────────────────┐     │
+   │       └──────┤Enviar Respuesta├─────┤
+   │              └────────┬───────┘     │
+   │                       │             │
+   │                       │             │
+   │         ┌─────────────┘             │
+   │         │                           │
+   │         ▼                           │
+   │    ┌─────────┐                      │
+   │    │ USUARIO │                      │
+   │    │RESPONDE │                      │
+   │    └────┬────┘                      │
+   │         │                           │
+   │         └──────────┐                │
+   │                    │                │
+   ▼  ✅ CONECTADO     ▼                │
+┌──────────────────────────┐            │
+│ Detectar Opção           │            │
+│   Continuação            │            │
+│ (Lee mensaje usuario)    │            │
+└─────────┬────────────────┘            │
+          │                             │
+          ▼                             │
+┌─────────────────────┐                 │
+│  Router Continuação │                 │
+└──┬───┬────┬─────┬───┘                 │
+   │   │    │     │                     │
+   ▼   ▼    ▼     ▼                     │
+  [1] [2]  [3]   [4]                    │
+Comp Prec Forn  Menu                    │
+   │   │    │     │                     │
+   └───┴────┴─────┴─────────────────────┘
+        (Vuelve al inicio)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+PROBLEMA DETALLE: Detección de Fornecedor Duplicado
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FLUJO ACTUAL (INCORRECTO) ❌
+────────────────────────────────────
+
+Agente Registrar Fornecedor
+         │
+         ▼
+Detectar Fornecedor Completo
+         │
+         ▼
+  ¿Fornecedor Completo?
+         │ SI
+         ▼
+Guardar Fornecedor BD  ◄──── ⚠️ GUARDA DIRECTAMENTE
+         │                   (UPDATE si existe, INSERT si no)
+         │                   ¡NO PREGUNTA AL USUARIO!
+         ▼
+   Check If Duplicate  ◄──── ⚠️ VERIFICA DESPUÉS DE GUARDAR
+         │                   (Demasiado tarde)
+         ▼
+(Output preparado pero nunca usado)
+
+
+FLUJO CORREGIDO (PROPUESTO) ✅
+────────────────────────────────────
+
+Agente Registrar Fornecedor
+         │
+         ▼
+Detectar Fornecedor Completo
+         │
+         ▼
+  ¿Fornecedor Completo?
+         │ SI
+         ▼
+✅ Buscar Fornecedor Duplicado  ◄──── BUSCA ANTES DE GUARDAR
+         │
+         ▼
+    Check If Duplicate
+      │          │
+      │ SI       │ NO
+      ▼          ▼
+   Mostrar    Guardar
+   Opciones   Forn BD
+      │       (INSERT)
+      ▼          │
+   Enviar       │
+   Respuesta    │
+      │         │
+      ▼         │
+   USUARIO      │
+   RESPONDE     │
+      │         │
+      ▼         │
+   Handle       │
+   Duplicate    │
+   Decision     │
+      │         │
+      ├─[1] Crear nuevo
+      ├─[2] Actualizar existente
+      └─[3] Cancelar
+           │
+           └─────┴────► Continuation Handler
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+RESUMEN DE CAMBIOS NECESARIOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PRIORIDAD ALTA (🔥 Workflow No Funciona Sin Esto)                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ 1. ✅ CREAR: "Verificar Si Es Continuación" (nodo Code)                     │
+│    └─► Después de "Buscar Usuario"                                         │
+│                                                                             │
+│ 2. ✅ CREAR: "¿Es Continuación?" (nodo IF)                                  │
+│    └─► Después de "Verificar Si Es Continuación"                           │
+│                                                                             │
+│ 3. ✅ CONECTAR: "Detectar Opção Continuação"                                │
+│    └─► Entrada desde "¿Es Continuación?" (TRUE)                            │
+│                                                                             │
+│ 4. ✅ MODIFICAR: "Continuation Handler"                                     │
+│    └─► Agregar campo awaiting_continuation = true                          │
+│                                                                             │
+│ 5. ✅ MODIFICAR: "Update Session DB"                                        │
+│    └─► Agregar campo awaiting_continuation                                 │
+│                                                                             │
+│ 6. ❌ ELIMINAR: "Detectar Opción del Menú" (duplicado)                      │
+│ 7. ❌ ELIMINAR: "Router de Opciones" (duplicado)                            │
+│ 8. ❌ ELIMINAR: "¿Es Interacción de Menú?" (duplicado)                      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PRIORIDAD MEDIA (⚠️ Mejora Estabilidad)                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ 9. ✅ CREAR: "Buscar Fornecedor Duplicado" (nodo Code)                      │
+│    └─► Antes de "Check If Duplicate"                                       │
+│                                                                             │
+│ 10. ✅ MODIFICAR: "Guardar Fornecedor BD"                                   │
+│     └─► Simplificar: solo INSERT, eliminar UPDATE                          │
+│                                                                             │
+│ 11. ✅ CONECTAR: Error handlers con try-catch en agentes                    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PRIORIDAD BAJA (💡 Optimización)                                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ 12. 📍 Reorganizar posiciones de nodos                                      │
+│ 13. 📝 Agregar Sticky Notes con documentación                               │
+│ 14. 🧪 Crear workflow de testing                                            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+FIN DEL DIAGRAMA
+═══════════════════════════════════════════════════════════════════════════════

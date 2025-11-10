@@ -1,0 +1,44 @@
+{
+  "name": "Frepi MVP1 - Main | SA - Enhanced",
+  "nodes": [
+    {
+      "id": "CONFIG_GLOBAL",
+      "name": "Config Global",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ===== CONFIG GLOBAL - PRESERVE INPUT DATA =====\n// This node adds configuration values to the input WITHOUT destroying it\n\nconst input = $input.first().json;\n\n// Configuration values\nconst config = {\n  \"PRICE_VALIDITY_DAYS\": 30,\n  \"PREFERENCE_FIELDS_TOTAL\": 5,\n  \"WELCOME_MESSAGE\": \"🍽️ *Bem-vindo ao Frepi!*\",\n  \"SESSION_TIMEOUT_MINUTES\": 60,\n  \"AI_MAX_RETRIES\": 3,\n  \"AI_TIMEOUT_SECONDS\": 30,\n  \"INCOMPLETE_PROFILE_WARNING\": \"⚠️ *Perfil incompleto ({percentage}%)*\\n→ Configure preferências para melhores recomendações!\\n\\n\",\n  \"CONTINUATION_MESSAGE\": \"✅ *Pronto!*\\n\\n💬 Posso te ajudar com algo mais?\\n\\n1️⃣ Fazer outra compra\\n2️⃣ Atualizar preços\\n3️⃣ Registrar fornecedor\\n4️⃣ Ver menú principal\\n\\nDigite o número ou descreva o que precisa.\"\n};\n\n// Return original input WITH config values added at top level\nreturn [{\n  json: {\n    ...input,  // Preserve all WhatsApp message data\n    ...config  // Add config values at top level\n  }\n}];\n"
+      },
+      "notes": "Configuração global do workflow. Modifique aqui para ajustar comportamento."
+    }
+  ],
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config Global",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Global": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
