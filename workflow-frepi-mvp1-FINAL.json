@@ -1,0 +1,3459 @@
+{
+  "name": "Frepi MVP1 - Main | SA - Enhanced",
+  "nodes": [
+    {
+      "id": "CONFIG_GLOBAL",
+      "name": "Config Global",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ===== CONFIG GLOBAL - PRESERVE INPUT DATA =====\n// This node adds configuration values to the input WITHOUT destroying it\n\nconst input = $input.first().json;\n\n// Configuration values\nconst config = {\n  \"PRICE_VALIDITY_DAYS\": 30,\n  \"PREFERENCE_FIELDS_TOTAL\": 5,\n  \"WELCOME_MESSAGE\": \"🍽️ *Bem-vindo ao Frepi!*\",\n  \"SESSION_TIMEOUT_MINUTES\": 60,\n  \"AI_MAX_RETRIES\": 3,\n  \"AI_TIMEOUT_SECONDS\": 30,\n  \"INCOMPLETE_PROFILE_WARNING\": \"⚠️ *Perfil incompleto ({percentage}%)*\\n→ Configure preferências para melhores recomendações!\\n\\n\",\n  \"CONTINUATION_MESSAGE\": \"✅ *Pronto!*\\n\\n💬 Posso te ajudar com algo mais?\\n\\n1️⃣ Fazer outra compra\\n2️⃣ Atualizar preços\\n3️⃣ Registrar fornecedor\\n4️⃣ Ver menú principal\\n\\nDigite o número ou descreva o que precisa.\"\n};\n\n// Return original input WITH config values added at top level\nreturn [{\n  json: {\n    ...input,  // Preserve all WhatsApp message data\n    ...config  // Add config values at top level\n  }\n}];\n"
+      },
+      "notes": "Configuração global do workflow. Modifique aqui para ajustar comportamento."
+    },
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1344,
+        768
+      ],
+      "id": "3f9d7434-b245-4ddc-bae0-798483a201a4",
+      "name": "WhatsApp Trigger",
+      "webhookId": "4399b6d8-3058-4de1-9df4-ffdb588f5a08",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "nL8j9VXr95OvYqlC",
+          "name": "Frepi bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Extraer Datos WhatsApp] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Extraer Datos WhatsApp',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  // Obtener el input\nconst data = input.json;\n\n// FILTRAR: Solo procesar si es un mensaje entrante\nif (!data.messages || data.messages.length === 0) {\n  console.log('⏭️ [Extraer Datos] Ignorando notificación de estado:', data.statuses?.[0]?.status);\n  return [];\n}\n\nconst message = data.messages[0];\nconst phoneNumber = message.from;\nconst userName = data.contacts[0].profile.name;\nconst messageId = message.id;\nconst timestamp = message.timestamp;\n\n// 📎 DETECTAR ARCHIVOS NO SOPORTADOS\nif (message.type !== 'text') {\n  console.log(`📎 [Extraer Datos] Archivo no soportado detectado: ${message.type}`);\n  \n  const unsupportedMessage = `📎 Oi! Percebi que você enviou um arquivo (${message.type}).\n\nPor enquanto, só consigo processar mensagens de texto. 📝\n\n🔜 Em breve vou poder receber fotos de notas fiscais!\n\nDigite \"menu\" para ver as opções disponíveis.`;\n  \n  return [{\n    json: {\n      phone_number: phoneNumber,\n      message: unsupportedMessage,\n      user_name: userName,\n      message_id: messageId,\n      timestamp: timestamp,\n      is_unsupported_file: true,\n      file_type: message.type,\n      output: unsupportedMessage\n    }\n  }];\n}\n\n// Extraer datos del mensaje de texto\nconst messageText = message.text.body;\n\nconsole.log('📱 [Extraer Datos] Mensaje recibido de:', phoneNumber);\nconsole.log('💬 [Extraer Datos] Contenido:', messageText);\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    message: messageText,\n    user_name: userName,\n    message_id: messageId,\n    timestamp: timestamp,\n    is_unsupported_file: false,\n    raw_data: input\n  }\n}];\n\n} catch (error) {\n  console.error(`[Extraer Datos WhatsApp] Error: ${error.message}`);\n  console.error(`[Extraer Datos WhatsApp] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Extraer Datos WhatsApp',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        768
+      ],
+      "id": "8191e7f8-7853-46c9-b83e-1033eb0b1986",
+      "name": "Extraer Datos WhatsApp"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "restaurant_people",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "whatsapp_number",
+              "condition": "eq",
+              "keyValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        768
+      ],
+      "id": "6f86f3b0-310e-4bae-a71b-a93f4c4a1291",
+      "name": "Buscar Usuario",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "70bdf2a5-042c-4132-abb9-e685ae094890",
+              "leftValue": "={{ Object.keys($json).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -672,
+        768
+      ],
+      "id": "fc939aeb-a487-4ba7-9d83-712f91a45c35",
+      "name": "¿Usuario Existe?"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "🍽️ Você é Frepi, assistente de compras por WhatsApp!\n\n🎯 MISSÃO: Completar o cadastro do restaurante\n\nPRIMEIRA MENSAGEM (se for novo usuário):\n\"Olá! Prazer em te conhecer! 😊\nSou o Frepi, seu assistente de compras.\n\nAntes de começar, vou precisar de algumas informações básicas.\nQual é o nome do seu restaurante?\"\n\nDADOS A COLETAR (nesta ordem):\n1. Nome do restaurante\n2. Nome da pessoa de contato  \n3. Cidade\n4. Tipo de negócio (Restaurante, Padaria, Cafeteria, Bar, Hotel, etc.)\n\nREGRAS:\n- UMA pergunta por vez\n- Seja natural e amigável (não robotizado!)\n- Se já cumprimentou = NÃO cumprimente de novo\n- Se o usuário der vários dados juntos = aceite todos\n- Use emojis relevantes: 🍽️ 📍 👤\n\nFORMATO FINAL (quando tiver TODOS os 4 dados):\nCADASTRO_COMPLETO\nNome Restaurante: [nome]\nNome Contato: [nome]\nCidade: [cidade]\nTipo: [tipo]\n\n✅ Perfeito! Cadastro completo!\n\nAgora você pode usar o Frepi. Digite \"menu\" para ver as opções disponíveis.\n\nTOM: Natural, casual, brasileiro. Como um amigo prestativo, não um robô."
+        },
+        "model": {
+          "__rl": {
+            "value": "OpenAI Chat Model",
+            "mode": "name",
+            "cachedResultName": "OpenAI Chat Model"
+          }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Simple Memory",
+            "mode": "name",
+            "cachedResultName": "Simple Memory"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        96
+      ],
+      "id": "cb8d33a8-224b-4fe3-b705-3dbf5de9e733",
+      "name": "Onboarding Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "frequencyPenalty": 1.5,
+          "presencePenalty": 0.6,
+          "temperature": 0.3,
+          "timeout": 30000,
+          "maxRetries": 3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        464,
+        320
+      ],
+      "id": "ffe24179-c625-4536-8f88-1af04e11274b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        592,
+        320
+      ],
+      "id": "5d97fdc9-db5b-487e-8401-86a8a9ada194",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "={{ $('WhatsApp Trigger').first().json.metadata.phone_number_id }}",
+        "recipientPhoneNumber": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}",
+        "textBody": "={{ $json.output || $json.message || $json.body || 'Oi! Vamos tentar de novo? 😊' }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        2976,
+        624
+      ],
+      "id": "db978f0c-2481-46a2-b43b-aba1b2ff8dfc",
+      "name": "Enviar Respuesta",
+      "webhookId": "5296878a-be4f-4a3c-a2d6-a05332a8bf53",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "Jb7XPGihYb3LXtzN",
+          "name": "Frepi Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "line_sessions",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "channel_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.phone_number }}"
+            },
+            {
+              "keyName": "session_type",
+              "condition": "eq",
+              "keyValue": "discovery"
+            },
+            {
+              "keyName": "session_goal_achieved",
+              "condition": "is",
+              "keyValue": "null"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        96
+      ],
+      "id": "a445384b-9fbf-4e6d-8589-385f8ed7e11c",
+      "name": "Buscar Sesión Activa",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c05e24e1-e967-4d40-906d-2fc503b9b212",
+              "leftValue": "={{ Object.keys($json).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -224,
+        96
+      ],
+      "id": "53b82bb3-f73d-4eaf-9987-75e4902d59d5",
+      "name": "¿Existe Sesión Onboarding?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Preparar Contexto de Sesión] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Preparar Contexto de Sesión',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const session = $input.first().json;\nconst userMessage = $('Extraer Datos WhatsApp').first().json.message;\n\nconst preferencesData = session.preferences_captured || {};\nconst collectedData = preferencesData.collected_data || {};\n\nconst context = {\n  session_id: session.session_id,\n  phone_number: session.channel_id,\n  message: userMessage,\n  session_context: `\nCONTEXTO DE LA SESIÓN ANTERIOR:\n- Estado del onboarding: ${preferencesData.onboarding_status || 'iniciado'}\n- Datos ya recopilados:\n  * Nombre del restaurante: ${collectedData.restaurant_name || 'pendiente'}\n  * Nombre del contacto: ${collectedData.contact_name || 'pendiente'}\n  * Ciudad: ${collectedData.city || 'pendiente'}\n  * Tipo de negocio: ${collectedData.business_type || 'pendiente'}\n\nEl usuario está continuando su registro. Continúa desde donde quedaste pidiendo los datos que faltan.\n  `.trim(),\n  collected_data: collectedData\n};\n\nreturn [{ json: context }];\n\n} catch (error) {\n  console.error(`[Preparar Contexto de Sesión] Error: ${error.message}`);\n  console.error(`[Preparar Contexto de Sesión] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Preparar Contexto de Sesión',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "d1c21c69-667f-4c9b-be86-27a0f1a744b0",
+      "name": "Preparar Contexto de Sesión"
+    },
+    {
+      "parameters": {
+        "tableId": "line_sessions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}_{{ $now.toFormat('yyyyMMdd_HHmmss') }}"
+            },
+            {
+              "fieldId": "channel_id",
+              "fieldValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}"
+            },
+            {
+              "fieldId": "channel_type",
+              "fieldValue": "whatsapp"
+            },
+            {
+              "fieldId": "session_type",
+              "fieldValue": "discovery"
+            },
+            {
+              "fieldId": "session_start",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "primary_intent",
+              "fieldValue": "registro_nuevo"
+            },
+            {
+              "fieldId": "preferences_captured",
+              "fieldValue": "={\n  \"onboarding_status\": \"in_progress\",\n  \"collected_data\": {\n    \"restaurant_name\": null,\n    \"contact_name\": null,\n    \"city\": null,\n    \"business_type\": null\n  }\n}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        0,
+        208
+      ],
+      "id": "a2cadb79-3be4-40de-9f38-496cf3367e7b",
+      "name": "Crear Nueva Sesión",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Detectar Onboarding Completo] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Detectar Onboarding Completo',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconst isComplete = agentOutput.includes('CADASTRO_COMPLETO');\n\nfunction mapBusinessType(tipo) {\n  const mapping = {\n    'restaurante': 'restaurant',\n    'padaria': 'cafe',\n    'cafeteria': 'cafe',\n    'lanchonete': 'cafe',\n    'bistro': 'bistro',\n    'brasserie': 'brasserie',\n    'hotel': 'hotel',\n    'catering': 'catering',\n    'buffet': 'catering'\n  };\n  \n  return mapping[tipo.toLowerCase()] || 'restaurant';\n}\n\nlet parsedData = {\n  restaurant_name: null,\n  contact_name: null,\n  city: null,\n  business_type: null\n};\n\nif (isComplete) {\n  const lines = agentOutput.split('\\n');\n  \n  for (const line of lines) {\n    if (line.includes('Nome Restaurante:')) {\n      parsedData.restaurant_name = line.split(':')[1].trim();\n    }\n    if (line.includes('Nome Contato:')) {\n      parsedData.contact_name = line.split(':')[1].trim();\n    }\n    if (line.includes('Cidade:')) {\n      parsedData.city = line.split(':')[1].trim();\n    }\n    if (line.includes('Tipo:')) {\n      const rawType = line.split(':')[1].trim();\n      parsedData.business_type = mapBusinessType(rawType);\n    }\n  }\n}\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    message_to_send: agentOutput,\n    onboarding_complete: isComplete,\n    collected_data: parsedData\n  }\n}];\n\n} catch (error) {\n  console.error(`[Detectar Onboarding Completo] Error: ${error.message}`);\n  console.error(`[Detectar Onboarding Completo] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Detectar Onboarding Completo',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        96
+      ],
+      "id": "43e59840-d31c-4d4f-8c20-44ea09bd0877",
+      "name": "Detectar Onboarding Completo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c76c3d3f-54cf-406a-9492-9ae9827cd4fb",
+              "leftValue": "={{ $json.onboarding_complete }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1088,
+        96
+      ],
+      "id": "6828d0dd-5bea-466d-ab6a-e874ff7e4f9c",
+      "name": "¿Onboarding Completo?"
+    },
+    {
+      "parameters": {
+        "tableId": "restaurants",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "restaurant_name",
+              "fieldValue": "={{ $json.collected_data.restaurant_name }}"
+            },
+            {
+              "fieldId": "restaurant_type",
+              "fieldValue": "={{ $json.collected_data.business_type }}"
+            },
+            {
+              "fieldId": "street_address",
+              "fieldValue": "Pendiente"
+            },
+            {
+              "fieldId": "city",
+              "fieldValue": "={{ $json.collected_data.city }}"
+            },
+            {
+              "fieldId": "is_active",
+              "fieldValue": "true"
+            },
+            {
+              "fieldId": "customer_since",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        0
+      ],
+      "id": "c2f07650-05ae-4200-9ffc-9561a45b8001",
+      "name": "Guardar Restaurante",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "restaurants",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "restaurant_name",
+              "condition": "eq",
+              "keyValue": "={{ $('Detectar Onboarding Completo').first().json.collected_data.restaurant_name }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        0
+      ],
+      "id": "c8f690d2-958d-4908-b7f6-44bb2c47ad85",
+      "name": "Buscar Restaurante Recién Creado",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Extraer ID Restaurante] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Extraer ID Restaurante',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const restaurants = $input.all().map(item => item.json);\n\nrestaurants.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));\n\nconst latestRestaurant = restaurants[0];\n\nconst onboardingData = $('Detectar Onboarding Completo').first().json;\n\nreturn [{\n  json: {\n    ...onboardingData,\n    restaurant_id: latestRestaurant.id,\n    restaurant_data: latestRestaurant\n  }\n}];\n\n} catch (error) {\n  console.error(`[Extraer ID Restaurante] Error: ${error.message}`);\n  console.error(`[Extraer ID Restaurante] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Extraer ID Restaurante',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        0
+      ],
+      "id": "c4f35a49-5c1a-4518-9259-689d66bc08a6",
+      "name": "Extraer ID Restaurante"
+    },
+    {
+      "parameters": {
+        "tableId": "restaurant_people",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "restaurant_id",
+              "fieldValue": "={{ $json.restaurant_id }}"
+            },
+            {
+              "fieldId": "first_name",
+              "fieldValue": "={{ $json.collected_data.contact_name.split(' ')[0] }}"
+            },
+            {
+              "fieldId": "last_name",
+              "fieldValue": "={{ $json.collected_data.contact_name.split(' ').slice(1).join(' ') || $json.collected_data.contact_name }}"
+            },
+            {
+              "fieldId": "whatsapp_number",
+              "fieldValue": "={{ $json.phone_number }}"
+            },
+            {
+              "fieldId": "is_primary_contact",
+              "fieldValue": "true"
+            },
+            {
+              "fieldId": "is_active",
+              "fieldValue": "true"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2112,
+        0
+      ],
+      "id": "4a4c639d-4588-479f-b756-3fae384ae7e6",
+      "name": "Guardar Contacto",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "line_sessions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "channel_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.phone_number }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_end",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "session_goal_achieved",
+              "fieldValue": "true"
+            },
+            {
+              "fieldId": "preferences_captured",
+              "fieldValue": "={\n  \"onboarding_status\": \"completed\",\n  \"completed_at\": \"{{ $now }}\",\n  \"collected_data\": {{ $json.collected_data }}\n}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2464,
+        0
+      ],
+      "id": "70ae39d6-b401-4767-9836-4f9801a8672d",
+      "name": "Marcar Sesión Completa",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "line_sessions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "channel_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Detectar Onboarding Completo').first().json.phone_number }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "message_count",
+              "fieldValue": "={{ $('Buscar Sesión Activa').first().json.message_count + 1 }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2464,
+        192
+      ],
+      "id": "028d83e1-1754-407a-baea-9b0f3665dfc7",
+      "name": "Actualizar Sesión Parcial",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Preparar Output Onboarding] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Preparar Output Onboarding',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const message = $('Detectar Onboarding Completo').first().json.message_to_send;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('✅ [Preparar Output Onboarding] Onboarding en progreso');\n\nreturn [{\n  json: {\n    output: message,\n    phone_number: phoneNumber\n  }\n}];\n\n} catch (error) {\n  console.error(`[Preparar Output Onboarding] Error: ${error.message}`);\n  console.error(`[Preparar Output Onboarding] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Preparar Output Onboarding',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        192
+      ],
+      "id": "743043b4-9757-4206-8820-0fa67f35bf31",
+      "name": "Preparar Output Onboarding"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Preparar Mensaje Final] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Preparar Mensaje Final',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const message = $('Detectar Onboarding Completo').first().json.message_to_send;\n\nreturn [{\n  json: {\n    output: message,\n    phone_number: $('Extraer Datos WhatsApp').first().json.phone_number\n  }\n}];\n\n} catch (error) {\n  console.error(`[Preparar Mensaje Final] Error: ${error.message}`);\n  console.error(`[Preparar Mensaje Final] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Preparar Mensaje Final',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        0
+      ],
+      "id": "1dcb6252-a795-436b-bc8c-ff7e41df77b4",
+      "name": "Preparar Mensaje Final"
+    },
+    {
+      "parameters": {
+        "tableId": "line_sessions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}_{{ $now.toFormat('yyyyMMdd_HHmmss') }}"
+            },
+            {
+              "fieldId": "channel_id",
+              "fieldValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}"
+            },
+            {
+              "fieldId": "restaurant_id",
+              "fieldValue": "={{ $('Detectar Opción del Menú').first().json.user_data.restaurant_id }}"
+            },
+            {
+              "fieldId": "person_id",
+              "fieldValue": "={{ $('Detectar Opción del Menú').first().json.user_data.id }}"
+            },
+            {
+              "fieldId": "channel_type",
+              "fieldValue": "whatsapp"
+            },
+            {
+              "fieldId": "session_type",
+              "fieldValue": "transactional"
+            },
+            {
+              "fieldId": "session_start",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "primary_intent",
+              "fieldValue": "fazer_pedido"
+            },
+            {
+              "fieldId": "products_discussed",
+              "fieldValue": "[]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1824,
+        736
+      ],
+      "id": "0ba47b99-554b-4efc-9521-a42fcfeeddd7",
+      "name": "Crear Sesión de Compra",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🔍 Vector Search Products - Enhanced\nconst userMessage = $input.first().json.message || $input.first().json.user_message;\nconst phoneNumber = $input.first().json.phone_number;\nconst sessionId = $input.first().json.session_id;\nconst restaurantId = $input.first().json.restaurant_id || $('Detectar Opción del Menú').first().json.user_data.restaurant_id;\n\nconsole.log('🔍 [Vector Search] Buscando productos para:', userMessage);\n\nlet queryEmbedding;\ntry {\n  const embeddingResponse = await $http.request({\n    method: 'POST',\n    url: 'https://api.openai.com/v1/embeddings',\n    headers: {\n      'Authorization': `Bearer ${$credentials.openAiApi.apiKey}`,\n      'Content-Type': 'application/json'\n    },\n    body: {\n      model: 'text-embedding-ada-002',\n      input: userMessage\n    }\n  });\n\n  if (embeddingResponse.statusCode !== 200) {\n    console.error('❌ [Vector Search] OpenAI Embedding error:', embeddingResponse);\n    return [{\n      json: {\n        user_message: userMessage,\n        phone_number: phoneNumber,\n        session_id: sessionId,\n        restaurant_id: restaurantId,\n        suggested_products: [],\n        products_context: '',\n        has_suggestions: false,\n        error: 'embedding_generation_failed',\n        ...($input.first().json)\n      }\n    }];\n  }\n\n  queryEmbedding = embeddingResponse.data[0].embedding;\n  console.log('✅ [Vector Search] Embedding generado exitosamente');\n  \n} catch (error) {\n  console.error('❌ [Vector Search] Error generando embedding:', error);\n  return [{\n    json: {\n      user_message: userMessage,\n      phone_number: phoneNumber,\n      session_id: sessionId,\n      restaurant_id: restaurantId,\n      suggested_products: [],\n      products_context: '',\n      has_suggestions: false,\n      error: 'embedding_error',\n      ...($input.first().json)\n    }\n  }];\n}\n\nlet matchingProducts = [];\ntry {\n  const { data, error } = await $supabase.rpc('match_products_v2', {\n    query_embedding: queryEmbedding,\n    match_threshold: 0.65,\n    match_count: 5\n  });\n\n  if (error) {\n    console.error('❌ [Vector Search] Supabase RPC error:', error.message);\n    matchingProducts = [];\n  } else {\n    matchingProducts = data || [];\n    console.log(`✅ [Vector Search] ${matchingProducts.length} productos encontrados`);\n  }\n  \n} catch (error) {\n  console.error('❌ [Vector Search] Error en búsqueda vectorial:', error);\n  matchingProducts = [];\n}\n\nlet productsContext = '';\n\nif (matchingProducts && matchingProducts.length > 0) {\n  productsContext = '🔍 PRODUTOS ENCONTRADOS NO CATÁLOGO:\\n\\n';\n  matchingProducts.forEach((p, idx) => {\n    productsContext += `${idx + 1}. ${p.product_name}`;\n    if (p.brand) productsContext += ` (${p.brand})`;\n    productsContext += '\\n';\n    productsContext += `   Relevância: ${(p.similarity * 100).toFixed(0)}%\\n`;\n    \n    if (p.alternative_names && Array.isArray(p.alternative_names) && p.alternative_names.length > 0) {\n      productsContext += `   Também chamado: ${p.alternative_names.join(', ')}\\n`;\n    }\n    productsContext += '\\n';\n  });\n  productsContext += '💡 Use estes produtos como referência.\\n';\n}\n\nreturn [{\n  json: {\n    user_message: userMessage,\n    phone_number: phoneNumber,\n    session_id: sessionId,\n    restaurant_id: restaurantId,\n    suggested_products: matchingProducts || [],\n    products_context: productsContext,\n    has_suggestions: matchingProducts && matchingProducts.length > 0,\n    embedding_used: true,\n    ...($input.first().json)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2112,
+        736
+      ],
+      "id": "70fa8234-53d5-4c89-af81-c6648d4233eb",
+      "name": "Vector Search Products",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
+        "options": {
+          "systemMessage": "🎯 VOCÊ É: Um assistente de procurement dedicado e experiente.\nComo um funcionário de confiança ajudando seu chefe a fazer as melhores compras.\n\nSUA ATITUDE:\n- 💡 Proativo: Sugira produtos relacionados que podem estar faltando\n- 👀 Atento: Lembre do histórico de compras se disponível\n- 🎓 Consultivo: Explique POR QUÊ está recomendando cada fornecedor\n- ⚡ Eficiente: Vá direto ao ponto, sem ser robótico\n- 🤝 Amigável: Fale como um colega brasileiro experiente\n\n---\n\n{{ $('Vector Search Products').first().json.products_context }}\n\nIMPORTANTE: Os produtos sugeridos acima estão verificados no nosso catálogo.\n\n---\n\n🛒 Você é Frepi, assistente de compras por WhatsApp para restaurantes.\n\nCONTEXTO DA SESSÃO:\nSessão ID: {{ $('Vector Search Products').first().json.session_id }}\nUsuário: {{ $('Vector Search Products').first().json.phone_number }}\n\n🎯 SUA MISSÃO: Ajudar o restaurante a fazer um pedido de produtos\n\n⚠️ *IMPORTANTE*:\nVocê NÃO envia pedidos automaticamente aos fornecedores.\nVocê APENAS recomenda as melhores opções baseado nos preços cadastrados.\nO restaurante fará o pedido DIRETAMENTE com os fornecedores escolhidos.\n\nINSTRUÇÕES:\n1. Para cada produto mencionado:\n   - Confirme o nome exato (usando catálogo 📦)\n   - Pergunte a quantidade 🔢\n   - Confirme a unidade (kg, litro, unidade, caixa) 📏\n\n2. Se há PRODUTOS SUGERIDOS do catálogo:\n   - Pergunte: \"Quer algum destes?\" 🤔\n   - Se sim: confirme quantidade\n   - Se não: esclareça o que precisa\n\n3. Quando tiver ≥ 1 produto completo:\n   - Pergunte: \"Quer adicionar mais?\" ➕\n   - Se não: resuma e confirme ✅\n\n4. FORMATO FINAL quando pedido completo:\nPEDIDO_COMPLETO\nItens:\n- [produto 1]: [quantidade] [unidade]\n- [produto 2]: [quantidade] [unidade]\nFornecedor preferido: [fornecedor ou 'não especificado']\n\nVou buscar as melhores opções! 🔍\n\nTOM: Natural, breve, amigável. Máximo 2-3 linhas. Use emojis: 🛒 📦 ✅ 🔢"
+        },
+        "model": {
+          "__rl": {
+            "value": "OpenAI Chat Model1",
+            "mode": "name",
+            "cachedResultName": "OpenAI Chat Model1"
+          }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Simple Memory1",
+            "mode": "name",
+            "cachedResultName": "Simple Memory1"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2400,
+        624
+      ],
+      "id": "ac67d56a-99ef-4dd9-82d4-66e30573fe36",
+      "name": "Agente de Compras"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2416,
+        848
+      ],
+      "id": "d5cfb41e-0fd3-41b5-888c-02097d6d7841",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2544,
+        848
+      ],
+      "id": "a4b42e90-a906-4eec-8396-665b95c90eee",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Extraer Respuesta Agente Compras] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Extraer Respuesta Agente Compras',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const data = input.json;\nconst message = data.output || data.text || JSON.stringify(input);\n\nreturn [{\n  json: {\n    output: message,\n    phone_number: $('Extraer Datos WhatsApp').first().json.phone_number\n  }\n}];\n\n} catch (error) {\n  console.error(`[Extraer Respuesta Agente Compras] Error: ${error.message}`);\n  console.error(`[Extraer Respuesta Agente Compras] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Extraer Respuesta Agente Compras',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        736
+      ],
+      "id": "6bfa3102-3d6f-406b-a239-70bfe08be144",
+      "name": "Extraer Respuesta Agente Compras"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Verificar Setup Completo] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Verificar Setup Completo',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const usuario = $input.first().json;\n\n// CAMBIO: Siempre permitir acceso al menú\n// Solo calculamos el % de completitud para mostrar\nconst tienePreferencias = usuario.category_preferences &&\n                          Object.keys(usuario.category_preferences).length > 0;\n\nconsole.log(`✅ [Setup Check] Usuario: ${usuario.nome || 'Sin nombre'}`);\nconsole.log(`   Tiene preferencias: ${tienePreferencias}`);\nconsole.log(`   % Completitud: ${usuario.preferencias_porcentaje || 0}%`);\n\nreturn [{\n  json: {\n    ...usuario,\n    setup_completo: true,  // ✅ SIEMPRE true - menú siempre accesible\n    tiene_preferencias: tienePreferencias,  // Flag informativo\n    preferencias_porcentaje: usuario.preferencias_porcentaje || 0\n  }\n}];\n\n} catch (error) {\n  console.error(`[Verificar Setup Completo] Error: ${error.message}`);\n  console.error(`[Verificar Setup Completo] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Verificar Setup Completo',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        1008
+      ],
+      "id": "da5847e1-f892-44e4-9927-438bdf8b277b",
+      "name": "Verificar Setup Completo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "823bbb54-7586-4c05-8f4d-229f65fc8dbd",
+              "leftValue": "={{ $json.setup_completo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "6002c55c-8905-49cf-800e-2c23379f3b72",
+              "leftValue": "={{ $json.is_menu_interaction }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        1008
+      ],
+      "id": "5125e378-7d70-4eed-b909-3da531c6331e",
+      "name": "¿Setup Completo?"
+    },
+    {
+      "parameters": {
+        "tableId": "line_sessions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}_setup_{{ $now.toFormat('yyyyMMdd_HHmmss') }}"
+            },
+            {
+              "fieldId": "channel_id",
+              "fieldValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}"
+            },
+            {
+              "fieldId": "restaurant_id",
+              "fieldValue": "={{ $('Verificar Setup Completo').first().json.restaurant_id }}"
+            },
+            {
+              "fieldId": "person_id",
+              "fieldValue": "={{ $('Verificar Setup Completo').first().json.id }}"
+            },
+            {
+              "fieldId": "channel_type",
+              "fieldValue": "whatsapp"
+            },
+            {
+              "fieldId": "session_type",
+              "fieldValue": "discovery"
+            },
+            {
+              "fieldId": "session_start",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "primary_intent",
+              "fieldValue": "configurar_preferencias"
+            },
+            {
+              "fieldId": "preferences_captured",
+              "fieldValue": "={   \"setup_status\": \"in_progress\",   \"preferences_collected\": {     \"quality_vs_price\": null,     \"preferred_brands\": [],     \"favorite_suppliers\": []   } }"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1824,
+        1024
+      ],
+      "id": "e77da733-1b0f-49c1-838d-dd953059c15c",
+      "name": "Crear Sesión de Setup",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
+        "options": {
+          "systemMessage": "Você é Frepi, assistente de compras.\n\n🎯 MISSÃO: Entender as preferências de compra do restaurante\n\nPERGUNTAS A FAZER (uma por vez):\n1. Quais produtos você compra com mais frequência?\n2. Tem algum fornecedor preferido?\n3. Com que frequência faz pedidos? (diário, semanal, quinzenal)\n4. Qual é o orçamento mensal aproximado para compras?\n\nREGRAS:\n- Uma pergunta por vez\n- Se o usuário já deu alguma informação, não pergunte de novo\n- Seja breve e direto (máximo 2 linhas)\n- Tom conversacional de WhatsApp\n\nFORMATO FINAL (quando tiver AS RESPOSTAS):\nSETUP_FINALIZADO\nProdutos Frequentes: [lista]\nFornecedores: [fornecedores]\nFrequência: [frequência]\nOrçamento Mensal: [valor]\n\nPerfeito! Agora conheço melhor suas necessidades. 👍\nQuando precisar fazer um pedido, é só me chamar!\n\nTOM: Amigável, profissional, brasileiro."
+        },
+        "model": {
+          "__rl": {
+            "value": "OpenAI Chat Model2",
+            "mode": "name",
+            "cachedResultName": "OpenAI Chat Model2"
+          }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Simple Memory2",
+            "mode": "name",
+            "cachedResultName": "Simple Memory2"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2048,
+        1024
+      ],
+      "id": "662f4879-bb10-4c49-86ed-dce5838b9793",
+      "name": "Agente de Setup"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2064,
+        1248
+      ],
+      "id": "1db955ff-4e52-4b18-9fbd-100def8621d9",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2192,
+        1248
+      ],
+      "id": "53af3513-df35-442f-a262-429e3fa4a71b",
+      "name": "Simple Memory2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Detectar Setup Completo] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Detectar Setup Completo',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const agentOutput = $input.first().json.output;\n\nconsole.log('📥 [Detectar Setup] Output recibido del agente:', agentOutput);\n\nconst setupCompleto = agentOutput.includes('CONFIGURACAO_COMPLETA');\n\nconsole.log('🔍 [Detectar Setup] Setup completo:', setupCompleto);\n\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\nconst userMessage = $('Extraer Datos WhatsApp').first().json.message;\n\nlet outputParaUsuario = agentOutput;\n\noutputParaUsuario = outputParaUsuario\n  .replace(/\\{[\\s\\S]*?\\}/g, '')\n  .replace(/CONFIGURACAO_COMPLETA/g, '')\n  .trim();\n\nif (!outputParaUsuario || outputParaUsuario.length < 20) {\n  outputParaUsuario = \"Perfeito! Configurei tudo.\\n\\nDe agora em diante sou seu agente de compras. Sempre que precisar é só chamar 😊\";\n}\n\nconsole.log('✅ [Detectar Setup] Output limpio para usuario:', outputParaUsuario);\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    setup_completo: setupCompleto,\n    output: outputParaUsuario,\n    output_completo: agentOutput,\n    user_message: userMessage\n  }\n}];\n\n} catch (error) {\n  console.error(`[Detectar Setup Completo] Error: ${error.message}`);\n  console.error(`[Detectar Setup Completo] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Detectar Setup Completo',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        1024
+      ],
+      "id": "e0cc4fb9-ea23-44ed-bf51-90f9ad74c260",
+      "name": "Detectar Setup Completo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "02074caa-84ee-4fb0-af1e-7f328370e6ea",
+              "leftValue": "={{ $json.setup_completo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2752,
+        1024
+      ],
+      "id": "ac6194a0-4fc6-4a9c-ac90-a5a5d4d14483",
+      "name": "¿Setup Finalizado?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Preparar Datos Subir Precios] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Preparar Datos Subir Precios',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('📋 [Subir Precios] Iniciando flujo de subir precios');\n\nconst menuData = $('Detectar Opción del Menú').first().json;\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    user_data: menuData.user_data,\n    restaurant_id: menuData.user_data.restaurant_id,\n    person_id: menuData.user_data.id,\n    message: $('Extraer Datos WhatsApp').first().json.message\n  }\n}];\n\n} catch (error) {\n  console.error(`[Preparar Datos Subir Precios] Error: ${error.message}`);\n  console.error(`[Preparar Datos Subir Precios] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Preparar Datos Subir Precios',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        336
+      ],
+      "id": "348b39e1-b7b0-4603-8c94-049e443d8507",
+      "name": "Preparar Datos Subir Precios"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Extraer Preferencias del Setup] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Extraer Preferencias del Setup',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const agentOutput = $input.first().json.output;\nconst usuario = $('Buscar Usuario').first().json;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconst conversacionCompleta = agentOutput;\n\nconst preferencias = {\n  preferencias_gerais: {\n    prioridade: null,\n    fornecedores_preferidos: []\n  },\n  categorias: {}\n};\n\nreturn [{\n  json: {\n    usuario_id: usuario.id,\n    restaurant_id: usuario.restaurant_id,\n    phone_number: phoneNumber,\n    conversacion_completa: conversacionCompleta,\n    necesita_procesamiento_llm: true\n  }\n}];\n\n} catch (error) {\n  console.error(`[Extraer Preferencias del Setup] Error: ${error.message}`);\n  console.error(`[Extraer Preferencias del Setup] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Extraer Preferencias del Setup',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        1072
+      ],
+      "id": "700d28a8-538f-430a-954f-b57d51b38a45",
+      "name": "Extraer Preferencias del Setup"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analise esta conversa de configuração e extraia as preferências em JSON:\n\n{{ $json.conversacion_completa }}\n\nFormato esperado:\n{\n  \"preferencias_gerais\": {\n    \"prioridade\": \"preco|qualidade|equilibrio\",\n    \"fornecedores_preferidos\": [\"Nome1\", \"Nome2\"] ou []\n  },\n  \"categorias\": {\n    \"Nome da Categoria\": {\n      \"priority\": \"preco|qualidade|equilibrio|freshness\",\n      \"brands\": [\"marca1\", \"marca2\"] ou [\"tanto faz\"],\n      \"quality_level\": \"A+|A|B|tanto faz\",\n      \"typical_quantity\": \"texto livre\"\n    }\n  }\n}\n\nResponda APENAS com o JSON, nada mais.",
+        "options": {
+          "systemMessage": "Você é um extrator de dados. Sua única tarefa é analisar conversas e extrair preferências de compra em formato JSON.\n\nIMPORTANTE: Responda APENAS com o JSON, sem texto adicional antes ou depois."
+        },
+        "model": {
+          "__rl": {
+            "value": "OpenAI Chat Model3",
+            "mode": "name",
+            "cachedResultName": "OpenAI Chat Model3"
+          }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Simple Memory3",
+            "mode": "name",
+            "cachedResultName": "Simple Memory3"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        3200,
+        1072
+      ],
+      "id": "a7124dc0-eed0-40e8-9d01-714f274a72bf",
+      "name": "Extraer JSON de Preferencias"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3216,
+        1296
+      ],
+      "id": "7799e89b-f4b0-45e0-aa5b-fdc34ed49a84",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        3344,
+        1296
+      ],
+      "id": "13d8f635-f311-442d-9260-4bc4f018dfd7",
+      "name": "Simple Memory3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Limpiar Output Después de Guardar] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Limpiar Output Después de Guardar',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('✅ [Limpiar Output] Preferencias guardadas exitosamente');\n\nconst successMessage = \"Pronto! Suas preferências foram salvas com sucesso. ✅\";\n\nreturn [{\n  json: {\n    output: successMessage,\n    phone_number: phoneNumber,\n    setup_completed: true\n  }\n}];\n\n} catch (error) {\n  console.error(`[Limpiar Output Después de Guardar] Error: ${error.message}`);\n  console.error(`[Limpiar Output Después de Guardar] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Limpiar Output Después de Guardar',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4000,
+        1216
+      ],
+      "id": "28a80395-d156-4a05-b493-14b5e26c3312",
+      "name": "Limpiar Output Después de Guardar"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
+        "options": {
+          "systemMessage": "Você é Frepi, assistente de compras.\n\n🎯 MISSÃO: Identificar qual opção do menu o usuário escolheu\n\nMENU DISPONÍVEL:\n1️⃣ Fazer uma compra\n2️⃣ Atualizar preços de fornecedor  \n3️⃣ Registrar/Atualizar fornecedor\n4️⃣ Configurar preferências\n\nINSTRUÇÕES:\n- Se usuário digitar \"1\", \"um\", \"compra\", \"pedido\" → ACAO:FAZER_PEDIDO\n- Se usuário digitar \"2\", \"dois\", \"preços\", \"precos\", \"atualizar\" → ACAO:ENVIAR_PRECOS\n- Se usuário digitar \"3\", \"três\", \"tres\", \"fornecedor\", \"cadastrar\" → ACAO:CADASTRAR_FORNECEDOR\n- Se usuário digitar \"4\", \"quatro\", \"preferências\", \"preferencias\", \"configurar\" → ACAO:CONFIGURAR\n\n- Se não estiver claro, mostre o menu novamente de forma amigável\n\nTOM: Natural, eficiente, brasileiro. Use emojis!"
+        },
+        "model": {
+          "__rl": {
+            "value": "OpenAI Chat Model4",
+            "mode": "name",
+            "cachedResultName": "OpenAI Chat Model4"
+          }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Simple Memory4",
+            "mode": "name",
+            "cachedResultName": "Simple Memory4"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        880
+      ],
+      "id": "f2c82b4f-796d-4439-bb41-3f03bf62e2ab",
+      "name": "Agente de Menú Principal"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        1104
+      ],
+      "id": "ae2abdc1-de41-41d1-9706-498a6ef453bb",
+      "name": "OpenAI Chat Model4",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1168,
+        1104
+      ],
+      "id": "eb4e93c4-4880-4ec8-a652-58fc490c6436",
+      "name": "Simple Memory4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Detectar Acción del Agente] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Detectar Acción del Agente',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('🤖 [Detectar Acción] Output del agente:', agentOutput);\n\nlet accion = 'mostrar_respuesta';\n\nif (agentOutput.includes('ACAO:FAZER_PEDIDO')) {\n  accion = 'hacer_pedido';\n} else if (agentOutput.includes('ACAO:CONFIGURAR')) {\n  accion = 'configurar';\n} else if (agentOutput.includes('ACAO:ENVIAR_PRECOS')) {\n  accion = 'enviar_precos';\n} else if (agentOutput.includes('ACAO:CADASTRAR_FORNECEDOR')) {\n  accion = 'cadastrar_fornecedor';\n}\n\nlet outputLimpio = agentOutput\n  .replace(/ACAO:FAZER_PEDIDO/g, '')\n  .replace(/ACAO:CONFIGURAR/g, '')\n  .replace(/ACAO:ENVIAR_PRECOS/g, '')\n  .replace(/ACAO:CADASTRAR_FORNECEDOR/g, '')\n  .trim();\n\nconsole.log('🎯 [Detectar Acción] Acción detectada:', accion);\n\nreturn [{\n  json: {\n    accion: accion,\n    output: outputLimpio,\n    phone_number: phoneNumber,\n    original_output: agentOutput\n  }\n}];\n\n} catch (error) {\n  console.error(`[Detectar Acción del Agente] Error: ${error.message}`);\n  console.error(`[Detectar Acción del Agente] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Detectar Acción del Agente',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        608
+      ],
+      "id": "2ab6f677-0def-4a59-a654-b1612f3cdff1",
+      "name": "Detectar Acción del Agente"
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "output": "={{\n  $json.accion === 'hacer_pedido' ? 0 :\n  $json.accion === 'configurar' ? 1 :\n  $json.accion === 'enviar_precos' ? 2 :\n  $json.accion === 'cadastrar_fornecedor' ? 3 :\n  4\n}}",
+        "options": {
+          "outputsAmount": 5
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1600,
+        576
+      ],
+      "id": "58a9e589-1536-4c42-a4ee-cb8d2f32086d",
+      "name": "Router de Acciones"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Preparar Input para Onboarding] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Preparar Input para Onboarding',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const session = $input.first().json;\nconst userMessage = $('Extraer Datos WhatsApp').first().json.message;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\nconst userName = $('Extraer Datos WhatsApp').first().json.user_name;\n\nreturn [{\n  json: {\n    session_id: session.session_id,\n    phone_number: phoneNumber,\n    user_name: userName,\n    message: userMessage,\n    session_context: \"Novo usuário iniciando cadastro.\"\n  }\n}];\n\n} catch (error) {\n  console.error(`[Preparar Input para Onboarding] Error: ${error.message}`);\n  console.error(`[Preparar Input para Onboarding] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Preparar Input para Onboarding',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        208
+      ],
+      "id": "81773b2b-8569-4dfe-aef8-b3b09694d35b",
+      "name": "Preparar Input para Onboarding"
+    },
+    {
+      "parameters": {
+        "jsCode": "const preferenciasRaw = $input.first().json.output;\n\nlet preferencias;\ntry {\n  const jsonLimpio = preferenciasRaw\n    .replace(/```json\\n?/g, '')\n    .replace(/```\\n?/g, '')\n    .replace(/^[^{]*/g, '')\n    .replace(/[^}]*$/g, '')\n    .trim();\n  \n  preferencias = JSON.parse(jsonLimpio);\n  \n  console.log('✅ JSON parseado correctamente:', preferencias);\n} catch (error) {\n  console.error('❌ Error parseando JSON:', error);\n  console.error('Raw data:', preferenciasRaw);\n  throw new Error('No se pudo parsear las preferencias: ' + preferenciasRaw);\n}\n\nconst usuario = $('Buscar Usuario').first().json;\n\nconst prioridadMap = {\n  'preco': 0.2,\n  'equilibrio': 0.5,\n  'qualidade': 0.8\n};\n\nconst priceSensitivity = prioridadMap[preferencias.preferencias_gerais?.prioridade] || 0.5;\n\nreturn [{\n  json: {\n    restaurant_id: usuario.restaurant_id,\n    category_preferences: preferencias.categorias,\n    price_sensitivity: priceSensitivity,\n    preferred_suppliers: preferencias.preferencias_gerais?.fornecedores_preferidos || [],\n    brand_loyalties: preferencias.categorias\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3552,
+        1072
+      ],
+      "id": "dfbf1af5-1977-4a1a-8d36-b15cbaeb6c17",
+      "name": "Preparar Datos para Guardar"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "restaurants",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.restaurant_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "category_preferences",
+              "fieldValue": "={{ $json.category_preferences }}"
+            },
+            {
+              "fieldId": "price_sensitivity",
+              "fieldValue": "={{ $json.price_sensitivity }}"
+            },
+            {
+              "fieldId": "preferred_suppliers",
+              "fieldValue": "={{ $json.preferred_suppliers }}"
+            },
+            {
+              "fieldId": "brand_loyalties",
+              "fieldValue": "={{ $json.brand_loyalties }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3776,
+        1072
+      ],
+      "id": "abfdc805-d102-48f6-9028-978a86d665d2",
+      "name": "Actualizar Restaurante con Preferencias",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "line_sessions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "={{ $json.phone_number }}_prices_{{ $now.toFormat('yyyyMMdd_HHmmss') }}"
+            },
+            {
+              "fieldId": "channel_id",
+              "fieldValue": "={{ $json.phone_number }}"
+            },
+            {
+              "fieldId": "restaurant_id",
+              "fieldValue": "={{ $json.restaurant_id }}"
+            },
+            {
+              "fieldId": "person_id",
+              "fieldValue": "={{ $json.person_id }}"
+            },
+            {
+              "fieldId": "channel_type",
+              "fieldValue": "whatsapp"
+            },
+            {
+              "fieldId": "session_type",
+              "fieldValue": "transactional"
+            },
+            {
+              "fieldId": "session_start",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "primary_intent",
+              "fieldValue": "upload_prices"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2048,
+        336
+      ],
+      "id": "NEW_SESSION_PRICES",
+      "name": "Crear Sesión Subir Precios",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
+        "options": {
+          "systemMessage": "💰 Você é Frepi, especialista em cadastrar preços.\n\n🎯 MISSÃO: Receber e cadastrar listas de preços dos fornecedores\n\nO QUE VOCÊ PRECISA EXTRAIR:\nPara cada produto:\n1. Nome do produto\n2. Fornecedor\n3. Preço (valor numérico)\n4. Unidade (kg, litro, unidade, caixa, etc.)\n\n📝 FORMATOS ACEITOS:\n\nFORMATO A (Texto livre):\n\"Leite Piracanjuba 4.50/L\nArroz Tio João 5.20/kg\nFeijão Camil 6.80/kg\"\n\nFORMATO B (Estruturado):\n\"Fornecedor: Piracanjuba\n- Leite 4.50/L\n- Queijo 18.00/kg\n\nFornecedor: Tio João\n- Arroz 5.20/kg\"\n\nINSTRUÇÕES:\n- Aceite QUALQUER formato de lista\n- Se algo não estiver claro, pergunte APENAS o que falta\n- Seja flexível com formatação\n- Use emojis: 💰 📦 ✅ ⚠️\n- SEMPRE confirme TODOS os dados antes de finalizar\n\n💡 DICA PROATIVA:\nSe o usuário enviar apenas 2-3 produtos, pergunte de forma natural:\n\"Legal! Vi que cadastrou [produtos]. Tem mais produtos desse fornecedor para cadastrar?\"\n\nFORMATO FINAL (quando tiver TODOS os dados confirmados):\nPRECOS_CONFIRMADOS\n[\n  {\n    \"produto\": \"Leite Integral\",\n    \"fornecedor\": \"Piracanjuba\",\n    \"preco\": 4.50,\n    \"unidade\": \"litro\"\n  },\n  {\n    \"produto\": \"Arroz Branco\",\n    \"fornecedor\": \"Tio João\",\n    \"preco\": 5.20,\n    \"unidade\": \"kg\"\n  }\n]\n\n✅ Pronto! Preços cadastrados com sucesso!\n\nTOM: Eficiente, claro, amigável. Máximo 3 linhas. Use emojis!\n\nSE USUÁRIO ENVIAR ALGO CONFUSO: \n\"⚠️ Não entendi bem. Pode me enviar no formato:\nProduto Fornecedor Preço/Unidade\n\nExemplo: Leite Piracanjuba 4.50/L\""
+        },
+        "model": {
+          "__rl": {
+            "value": "OpenAI Chat Model5",
+            "mode": "name",
+            "cachedResultName": "OpenAI Chat Model5"
+          }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Simple Memory5",
+            "mode": "name",
+            "cachedResultName": "Simple Memory5"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2272,
+        336
+      ],
+      "id": "AGENT_UPLOAD_PRICES",
+      "name": "Agente Subir Precios"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2288,
+        560
+      ],
+      "id": "LLM_UPLOAD_PRICES",
+      "name": "OpenAI Chat Model5",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}_prices",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2416,
+        560
+      ],
+      "id": "MEMORY_UPLOAD_PRICES",
+      "name": "Simple Memory5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('💰 [Detectar Precios] Output del agente:', agentOutput);\n\nconst isPricesComplete = agentOutput.includes('PRECOS_CONFIRMADOS');\n\nlet preciosData = [];\nlet outputLimpio = agentOutput;\n\nif (isPricesComplete) {\n  try {\n    const jsonMatch = agentOutput.match(/\\[\\s*\\{[\\s\\S]*?\\}\\s*\\]/);    if (jsonMatch) {\n      preciosData = JSON.parse(jsonMatch[0]);\n      console.log('✅ [Detectar Precios] Precios parseados:', preciosData.length);\n    }\n    \n    outputLimpio = agentOutput\n      .replace(/PRECOS_CONFIRMADOS/g, '')\n      .replace(/\\[\\s*\\{[\\s\\S]*?\\}\\s*\\]/g, '')\n      .trim();\n    \n    if (!outputLimpio || outputLimpio.length < 10) {\n      outputLimpio = 'Pronto! Preços cadastrados com sucesso! ✅';\n    }\n  } catch (error) {\n    console.error('❌ [Detectar Precios] Error parseando:', error);\n  }\n}\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    prices_complete: isPricesComplete,\n    prices_data: preciosData,\n    output: outputLimpio,\n    original_output: agentOutput\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        336
+      ],
+      "id": "DETECT_PRICES_COMPLETE",
+      "name": "Detectar Precios Completos"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "PRICES_CHECK",
+              "leftValue": "={{ $json.prices_complete }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2848,
+        336
+      ],
+      "id": "IF_PRICES_COMPLETE",
+      "name": "¿Precios Completos?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🔄 Procesar cada precio y guardarlo\nconst pricesData = $input.first().json.prices_data;\nconst restaurantId = $('Preparar Datos Subir Precios').first().json.restaurant_id;\n\nconsole.log('💾 [Procesar Precios] Procesando', pricesData.length, 'precios');\n\nconst results = [];\n\nfor (const item of pricesData) {\n  try {\n    // 1. Buscar o crear proveedor\n    let supplierId = null;\n    \n    const { data: existingSupplier } = await $supabase\n      .from('suppliers')\n      .select('id')\n      .ilike('company_name', item.fornecedor)\n      .limit(1)\n      .single();\n    \n    if (existingSupplier) {\n      supplierId = existingSupplier.id;\n      console.log('✅ Proveedor existente:', item.fornecedor, supplierId);\n    } else {\n      const { data: newSupplier, error } = await $supabase\n        .from('suppliers')\n        .insert({\n          company_name: item.fornecedor,\n          is_active: true,\n          created_at: new Date().toISOString()\n        })\n        .select('id')\n        .single();\n      \n      if (!error && newSupplier) {\n        supplierId = newSupplier.id;\n        console.log('✅ Nuevo proveedor creado:', item.fornecedor, supplierId);\n      }\n    }\n    \n    if (!supplierId) {\n      console.error('❌ No se pudo obtener supplier_id para:', item.fornecedor);\n      continue;\n    }\n    \n    // 2. Buscar producto en master_list\n    const { data: masterProduct } = await $supabase\n      .from('master_list')\n      .select('id')\n      .ilike('product_name', `%${item.producto}%`)\n      .limit(1)\n      .single();\n    \n    const masterListId = masterProduct?.id || null;\n    \n    // 3. Guardar en supplier_mapped_products\n    const { data: mappedProduct, error: mapError } = await $supabase\n      .from('supplier_mapped_products')\n      .insert({\n        supplier_id: supplierId,\n        master_list_id: masterListId,\n        supplier_product_name: item.produto,\n        current_unit_price: item.preco,\n        price_per_unit_type: item.unidade,\n        currency: 'BRL',\n        mapping_confidence: masterListId ? 0.9 : 0.5,\n        mapping_method: 'user_input',\n        is_active: true,\n        created_at: new Date().toISOString()\n      })\n      .select('id')\n      .single();\n    \n    if (mapError) {\n      console.error('❌ Error guardando producto:', mapError);\n      continue;\n    }\n    \n    // 4. Guardar en pricing_history\n    await $supabase\n      .from('pricing_history')\n      .insert({\n        supplier_id: supplierId,\n        master_list_id: masterListId,\n        supplier_mapped_product_id: mappedProduct.id,\n        unit_price: item.preco,\n        currency: 'BRL',\n        price_per_unit_type: item.unidade,\n        effective_date: new Date().toISOString(),\n        snapshot_date: new Date().toISOString(),\n        data_source: 'whatsapp_user',\n        verification_status: 'pending',\n        created_at: new Date().toISOString()\n      });\n    \n    results.push({\n      producto: item.produto,\n      fornecedor: item.fornecedor,\n      success: true\n    });\n    \n    console.log('✅ Precio guardado:', item.produto, item.fornecedor, item.preco);\n    \n  } catch (error) {\n    console.error('❌ Error procesando precio:', error);\n    results.push({\n      producto: item.produto,\n      error: error.message\n    });\n  }\n}\n\nconsole.log(`✅ [Procesar Precios] ${results.filter(r => r.success).length}/${results.length} precios guardados`);\n\nreturn [{\n  json: {\n    phone_number: $input.first().json.phone_number,\n    total_prices: pricesData.length,\n    saved_successfully: results.filter(r => r.success).length,\n    results: results,\n    output: `✅ ${results.filter(r => r.success).length} preços cadastrados com sucesso!`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        240
+      ],
+      "id": "PROCESS_SAVE_PRICES",
+      "name": "Procesar y Guardar Precios",
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\nconst restaurantId = $('Vector Search Products').first().json.restaurant_id;\n\nconsole.log('🛒 [Detectar Pedido] Analizando output del agente');\n\nconst isPedidoCompleto = agentOutput.includes('PEDIDO_COMPLETO');\n\nlet productos = [];\nlet outputLimpio = agentOutput;\n\nif (isPedidoCompleto) {\n  try {\n    const lines = agentOutput.split('\\n');\n    let inItems = false;\n    \n    for (const line of lines) {\n      if (line.includes('Itens:')) {\n        inItems = true;\n        continue;\n      }\n      if (line.includes('Fornecedor')) {\n        inItems = false;\n      }\n      if (inItems && line.trim().startsWith('-')) {\n        const match = line.match(/- (.+?):\\s*([\\d.]+)\\s*(\\w+)/);\n        if (match) {\n          productos.push({\n            produto: match[1].trim(),\n            quantidade: parseFloat(match[2]),\n            unidade: match[3]\n          });\n        }\n      }\n    }\n    \n    console.log(`✅ [Detectar Pedido] ${productos.length} produtos detectados`);\n    \n    outputLimpio = agentOutput\n      .replace(/PEDIDO_COMPLETO/g, '')\n      .trim();\n    \n  } catch (error) {\n    console.error('❌ [Detectar Pedido] Error parseando:', error);\n  }\n}\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    restaurant_id: restaurantId,\n    pedido_completo: isPedidoCompleto,\n    produtos: productos,\n    output: outputLimpio,\n    original_output: agentOutput\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        624
+      ],
+      "id": "DETECT_ORDER_COMPLETE",
+      "name": "Detectar Pedido Completo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ORDER_COMPLETE_CHECK",
+              "leftValue": "={{ $json.pedido_completo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3040,
+        624
+      ],
+      "id": "IF_ORDER_COMPLETE",
+      "name": "¿Pedido Completo?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const productos = $input.first().json.produtos;\nconst restaurantId = $input.first().json.restaurant_id;\n\nconsole.log(`🔍 [Buscar Precios] Buscando precios para ${productos.length} productos`);\n\n// Obtener preferencias del restaurante\nconst { data: restaurant } = await $supabase\n  .from('restaurants')\n  .select('price_sensitivity, preferred_suppliers')\n  .eq('id', restaurantId)\n  .single();\n\nconst priceSensitivity = restaurant?.price_sensitivity || 0.5;\nconst preferredSuppliers = restaurant?.preferred_suppliers || [];\n\nconsole.log(`💡 [Buscar Precios] Price sensitivity: ${priceSensitivity}`);\n\nconst resultados = [];\n\nfor (const producto of productos) {\n  try {\n    // Buscar en master_list por similaridad\n    const { data: masterProducts } = await $supabase\n      .from('master_list')\n      .select('id, product_name')\n      .ilike('product_name', `%${producto.produto}%`)\n      .limit(3);\n    \n    if (!masterProducts || masterProducts.length === 0) {\n      console.log(`⚠️ Producto no encontrado en catálogo: ${producto.produto}`);\n      resultados.push({\n        produto: producto.produto,\n        quantidade: produto.quantidade,\n        unidade: produto.unidade,\n        opciones: [],\n        no_encontrado: true\n      });\n      continue;\n    }\n    \n    const masterListIds = masterProducts.map(p => p.id);\n    \n    // Buscar TODOS los precios de TODOS los proveedores\n    const { data: supplierPrices } = await $supabase\n      .from('supplier_mapped_products')\n      .select(\\`\n        id,\n        supplier_id,\n        supplier_product_name,\n        current_unit_price,\n        price_per_unit_type,\n        suppliers (\n          id,\n          company_name,\n          is_preferred\n        )\n      \\`)\n      .in('master_list_id', masterListIds)\n      .eq('is_active', true);\n    \n    if (!supplierPrices || supplierPrices.length === 0) {\n      console.log(`⚠️ No hay precios para: ${producto.produto}`);\n      resultados.push({\n        produto: producto.produto,\n        quantidade: produto.quantidade,\n        unidade: produto.unidade,\n        opciones: [],\n        sin_precios: true\n      });\n      continue;\n    }\n    \n    console.log(`✅ Encontrados ${supplierPrices.length} precios para ${producto.produto}`);\n    \n    // Calcular score para cada opción\n    const opciones = supplierPrices.map(price => {\n      const supplier = price.suppliers;\n      \n      // Score base: precio (invertido y normalizado)\n      const allPrices = supplierPrices.map(p => p.current_unit_price);\n      const minPrice = Math.min(...allPrices);\n      const maxPrice = Math.max(...allPrices);\n      const priceRange = maxPrice - minPrice;\n      \n      let priceScore = 1.0;\n      if (priceRange > 0) {\n        priceScore = 1 - ((price.current_unit_price - minPrice) / priceRange);\n      }\n      \n      // Bonus si es proveedor preferido\n      const preferredBonus = preferredSuppliers.includes(supplier.id) ? 0.2 : 0;\n      \n      // Score final ponderado por price_sensitivity\n      // price_sensitivity alto (0.8) = más importancia a calidad/preferido\n      // price_sensitivity bajo (0.2) = más importancia a precio bajo\n      const finalScore = (priceScore * (1 - priceSensitivity)) + \n                        (preferredBonus * priceSensitivity);\n      \n      return {\n        supplier_id: supplier.id,\n        supplier_name: supplier.company_name,\n        product_name: price.supplier_product_name,\n        price: price.current_unit_price,\n        unit: price.price_per_unit_type,\n        is_preferred: preferredSuppliers.includes(supplier.id),\n        price_score: priceScore,\n        final_score: finalScore\n      };\n    });\n    \n    // Ordenar por score\n    opciones.sort((a, b) => b.final_score - a.final_score);\n    \n    resultados.push({\n      produto: producto.produto,\n      quantidade: produto.quantidade,\n      unidade: produto.unidade,\n      opciones: opciones,\n      mejor_opcion: opciones[0],\n      total_opciones: opciones.length\n    });\n    \n  } catch (error) {\n    console.error(`❌ Error buscando ${producto.produto}:`, error);\n  }\n}\n\nconsole.log(`✅ [Buscar Precios] Análisis completo: ${resultados.length} productos`);\n\nreturn [{\n  json: {\n    phone_number: $input.first().json.phone_number,\n    restaurant_id: restaurantId,\n    price_sensitivity: priceSensitivity,\n    resultados: resultados,\n    productos_analizados: resultados.length\n  }\n}];",
+        "credentials": {
+          "supabaseApi": {
+            "id": "YaSYB0r907WCaDZK",
+            "name": "Frepi Supabase"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3328,
+        528
+      ],
+      "id": "SEARCH_ALL_SUPPLIERS",
+      "name": "Buscar Precios Todos Proveedores"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Generar Recomendación] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Generar Recomendación',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const resultados = $input.first().json.resultados;\nconst phoneNumber = $input.first().json.phone_number;\nconst priceSensitivity = $input.first().json.price_sensitivity;\n\nconsole.log('💎 [Generar Recomendación] Creando mensaje para usuario');\n\nlet mensaje = '🎯 *RECOMENDAÇÃO DE COMPRA*\\n\\n';\n\nlet totalEstimado = 0;\nlet fornecedorPrincipal = null;\nconst fornecedoresUsados = new Set();\n\nfor (const item of resultados) {\n  if (item.no_encontrado) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Produto não encontrado no catálogo.\\n\\n`;\n    continue;\n  }\n  \n  if (item.sin_precios) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Sem preços cadastrados.\\n\\n`;\n    continue;\n  }\n  \n  const mejor = item.mejor_opcion;\n  const subtotal = mejor.price * item.quantidade;\n  totalEstimado += subtotal;\n  \n  fornecedoresUsados.add(mejor.supplier_name);\n  \n  mensaje += `✅ *${item.produto}*\\n`;\n  mensaje += `📦 ${item.quantidade} ${item.unidade}\\n`;\n  mensaje += `🏪 *${mejor.supplier_name}*`;\n  if (mejor.is_preferred) mensaje += ' ⭐ (Preferido)';\n  mensaje += `\\n💰 R$ ${mejor.price.toFixed(2)}/${mejor.unit}`;\n  mensaje += ` = *R$ ${subtotal.toFixed(2)}*\\n`;\n  \n  // Mostrar alternativas si hay\n  if (item.opciones.length > 1) {\n    mensaje += `\\n_Outras opções:_\\n`;\n    for (let i = 1; i < Math.min(3, item.opciones.length); i++) {\n      const alt = item.opciones[i];\n      const diff = ((alt.price - mejor.price) / mejor.price * 100).toFixed(0);\n      const signo = diff > 0 ? '+' : '';\n      mensaje += `   • ${alt.supplier_name}: R$ ${alt.price.toFixed(2)} (${signo}${diff}%)\\n`;\n    }\n  }\n  \n  mensaje += '\\n';\n}\n\nmensaje += `━━━━━━━━━━━━━━━━\\n`;\nmensaje += `💵 *TOTAL ESTIMADO: R$ ${totalEstimado.toFixed(2)}*\\n\\n`;\n\nif (fornecedoresUsados.size === 1) {\n  mensaje += `✨ Você pode fazer tudo com *${[...fornecedoresUsados][0]}*!\\n\\n`;\n} else {\n  mensaje += `📋 Fornecedores sugeridos: ${[...fornecedoresUsados].join(', ')}\\n\\n`;\n}\n\n// Explicar criterio\nif (priceSensitivity < 0.4) {\n  mensaje += '💡 _Priorizei menor preço_\\n';\n} else if (priceSensitivity > 0.6) {\n  mensaje += '💡 _Priorizei qualidade e fornecedores preferidos_\\n';\n} else {\n  mensaje += '💡 _Priorizei equilíbrio entre preço e qualidade_\\n';\n}\n\nmensaje += '\\nEsta é uma recomendação. Você precisa fazer o pedido diretamente com os fornecedores? 👍';\n\nconsole.log('✅ [Generar Recomendación] Mensaje creado');\n\n// Agregar nota si hay precios desactualizados\nif (hayProblemas) {\n  mensaje += `\\n\\n⚠️ *Nota Importante*\n\nAlguns preços estão desatualizados (> 30 dias).\nRecomendo atualizar seus preços para recomendações mais precisas.\n\nDigite \"2\" para atualizar preços agora.`;\n}\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber,\n    total_estimado: totalEstimado,\n    fornecedores: [...fornecedoresUsados]\n  }\n}];\n\n} catch (error) {\n  console.error(`[Generar Recomendación] Error: ${error.message}`);\n  console.error(`[Generar Recomendación] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Generar Recomendación',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3616,
+        528
+      ],
+      "id": "GENERATE_RECOMMENDATION",
+      "name": "Generar Recomendación"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 📊 Calcular % de preferencias completadas\nconst usuario = $input.first().json;\n\nconsole.log('📊 [Calcular %] Verificando preferencias del restaurante');\n\n// Obtener datos del restaurante\nconst restaurantId = usuario.restaurant_id;\n\nlet camposCompletados = 0;\nconst totalCampos = parseInt($('Config Global').first().json.PREFERENCE_FIELDS_TOTAL);\n\ntry {\n  const { data: restaurant } = await $supabase\n    .from('restaurants')\n    .select('category_preferences, preferred_suppliers, ordering_frequency, monthly_spend_avg, payment_terms')\n    .eq('id', restaurantId)\n    .single();\n  \n  if (!restaurant) {\n    console.log('⚠️ [Calcular %] Restaurante no encontrado');\n    return [{\n      json: {\n        ...usuario,\n        preferencias_porcentaje: 0,\n        is_menu_interaction: false\n      }\n    }];\n  }\n  \n  // Verificar cada campo\n  if (restaurant.category_preferences && Object.keys(restaurant.category_preferences).length > 0) {\n    camposCompletados++;\n  }\n  if (restaurant.preferred_suppliers && restaurant.preferred_suppliers.length > 0) {\n    camposCompletados++;\n  }\n  if (restaurant.ordering_frequency) {\n    camposCompletados++;\n  }\n  if (restaurant.monthly_spend_avg && restaurant.monthly_spend_avg > 0) {\n    camposCompletados++;\n  }\n  if (restaurant.payment_terms) {\n    camposCompletados++;\n  }\n  \n  const porcentaje = Math.round((camposCompletados / totalCampos) * 100);\n  \n  console.log(`📊 [Calcular %] ${camposCompletados}/${totalCampos} completados = ${porcentaje}%`);\n  \n  return [{\n    json: {\n      ...usuario,\n      preferencias_porcentaje: porcentaje,\n      campos_completados: camposCompletados,\n      total_campos: totalCampos,\n      is_menu_interaction: false\n    }\n  }];\n  \n} catch (error) {\n  console.error('❌ [Calcular %] Error:', error);\n  return [{\n    json: {\n      ...usuario,\n      preferencias_porcentaje: 0,\n      is_menu_interaction: false\n    }\n  }];\n}",
+        "credentials": {
+          "supabaseApi": {
+            "id": "YaSYB0r907WCaDZK",
+            "name": "Frepi Supabase"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        1008
+      ],
+      "id": "CALC_PREFERENCES_PERCENT",
+      "name": "Calcular % Preferencias"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Generar Menú Principal] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Generar Menú Principal',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const usuario = $input.first().json;\nconst porcentaje = usuario.preferencias_porcentaje || 0;\nconst phoneNumber = usuario.phone_number || $input.first().json.phone_number;\n\nconsole.log(`📋 [Generar Menú] Usuario: ${usuario.nome || 'Sin nombre'}`);\nconsole.log(`   Preferencias: ${porcentaje}%`);\n\n// Construir advertencia si perfil incompleto\nlet advertencia = '';\nif (porcentaje < 100) {\n  advertencia = `⚠️ *Perfil incompleto (${porcentaje}%)*\n→ Configure preferências para melhores recomendações!\n\n`;\n}\n\nconst menuText = `${$('Config Global').first().json.WELCOME_MESSAGE}\n\n${advertencia}Escolha uma opção:\n\n1️⃣ Fazer uma compra\n2️⃣ Atualizar preços de fornecedor\n3️⃣ Registrar/Atualizar fornecedor\n4️⃣ Configurar preferências (${porcentaje}%)${porcentaje < 100 ? ' ⬅️ *Recomendado!*' : ' ✅'}\n\n💬 Você pode digitar o número ou descrever o que precisa.\nExemplo: \"quero fazer uma compra\" ou \"1\"`;\n\nreturn [{\n  json: {\n    output: menuText,\n    phone_number: phoneNumber,\n    user_data: usuario,\n    is_menu: true\n  }\n}];\n\n} catch (error) {\n  console.error(`[Generar Menú Principal] Error: ${error.message}`);\n  console.error(`[Generar Menú Principal] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Generar Menú Principal',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        880
+      ],
+      "id": "GENERATE_MAIN_MENU",
+      "name": "Generar Menú Principal"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "CHECK_UNSUPPORTED",
+              "leftValue": "={{ $json.is_unsupported_file }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -896,
+        640
+      ],
+      "id": "CHECK_UNSUPPORTED_FILE",
+      "name": "¿Archivo No Soportado?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🔍 Validar disponibilidad de precios antes de procesar pedido\nconst productos = $input.first().json.produtos;\nconst restaurantId = $input.first().json.restaurant_id;\nconst phoneNumber = $input.first().json.phone_number;\n\nconsole.log(`🔍 [Validar Precios] Verificando ${productos.length} productos`);\n\nconst resultados = [];\nlet hayProblemas = false;\n\nfor (const producto of productos) {\n  try {\n    // Buscar producto en master_list\n    const { data: masterProducts } = await $supabase\n      .from('master_list')\n      .select('id, product_name')\n      .ilike('product_name', `%${producto.produto}%`)\n      .limit(1);\n    \n    if (!masterProducts || masterProducts.length === 0) {\n      resultados.push({\n        produto: producto.produto,\n        problema: 'no_encontrado',\n        mensaje: `Produto \"${produto.produto}\" não encontrado no catálogo`\n      });\n      hayProblemas = true;\n      console.log(`⚠️ Produto no encontrado: ${produto.produto}`);\n      continue;\n    }\n    \n    const masterListId = masterProducts[0].id;\n    \n    // Verificar precios recientes (< 30 días)\n    const fechaLimite = new Date();\n    fechaLimite.setDate(fechaLimite.getDate() - parseInt($('Config Global').first().json.PRICE_VALIDITY_DAYS));\n    \n    const { data: recentPrices, error } = await $supabase\n      .from('pricing_history')\n      .select('id, supplier_id, unit_price, effective_date, suppliers(company_name)')\n      .eq('master_list_id', masterListId)\n      .gte('effective_date', fechaLimite.toISOString())\n      .order('effective_date', { ascending: false })\n      .limit(5);\n    \n    if (!recentPrices || recentPrices.length === 0) {\n      // Buscar el precio más reciente aunque sea antiguo\n      const { data: oldestPrice } = await $supabase\n        .from('pricing_history')\n        .select('effective_date, suppliers(company_name)')\n        .eq('master_list_id', masterListId)\n        .order('effective_date', { ascending: false })\n        .limit(1)\n        .single();\n      \n      if (oldestPrice) {\n        const diasAtras = Math.floor((Date.now() - new Date(oldestPrice.effective_date)) / (1000 * 60 * 60 * 24));\n        resultados.push({\n          produto: produto.produto,\n          problema: 'precos_desatualizados',\n          dias_atras: diasAtras,\n          ultimo_fornecedor: oldestPrice.suppliers?.company_name,\n          mensaje: `Preços desatualizados (há ${diasAtras} dias)`\n        });\n        hayProblemas = true;\n        console.log(`⚠️ Preços antigos para ${produto.produto}: ${diasAtras} días`);\n      } else {\n        resultados.push({\n          produto: produto.produto,\n          problema: 'sin_precios',\n          mensaje: 'Sem preços cadastrados'\n        });\n        hayProblemas = true;\n        console.log(`⚠️ Sin precios: ${produto.produto}`);\n      }\n    } else {\n      resultados.push({\n        produto: produto.produto,\n        problema: null,\n        precos_encontrados: recentPrices.length,\n        mensaje: `✅ ${recentPrices.length} preços atualizados`\n      });\n      console.log(`✅ Preços OK para ${produto.produto}: ${recentPrices.length} opciones`);\n    }\n    \n  } catch (error) {\n    console.error(`❌ Error validando ${producto.produto}:`, error);\n    resultados.push({\n      produto: producto.produto,\n      problema: 'erro',\n      mensaje: 'Erro ao verificar preços'\n    });\n    hayProblemas = true;\n  }\n}\n\nconsole.log(`🔍 [Validar Precios] Problemas detectados: ${hayProblemas}`);\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    restaurant_id: restaurantId,\n    produtos: productos,\n    validacion: resultados,\n    hay_problemas: hayProblemas,\n    puede_continuar: true  // Opción B: siempre permitir\n  }\n}];",
+        "credentials": {
+          "supabaseApi": {
+            "id": "YaSYB0r907WCaDZK",
+            "name": "Frepi Supabase"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3088,
+        440
+      ],
+      "id": "VALIDATE_PRICES_AVAILABILITY",
+      "name": "Validar Disponibilidad Precios"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Generar Mensaje Aviso] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Generar Mensaje Aviso',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  // ⚠️ Generar mensaje de aviso sobre problemas\nconst validacion = $input.first().json.validacion;\nconst hayProblemas = $input.first().json.hay_problemas;\n\nif (!hayProblemas) {\n  // Sin problemas, continuar normal\n  return [{\n    json: {\n      ...$input.first().json,\n      mensaje_aviso: null,\n      continuar_busqueda: true\n    }\n  }];\n}\n\nconsole.log('⚠️ [Generar Aviso] Creando mensaje sobre problemas detectados');\n\nlet mensaje = '⚠️ *AVISO - Análise do Pedido*\\n\\n';\n\nconst sinPrecios = validacion.filter(v => v.problema === 'sin_precios');\nconst desactualizados = validacion.filter(v => v.problema === 'precos_desatualizados');\nconst noEncontrados = validacion.filter(v => v.problema === 'no_encontrado');\n\nif (noEncontrados.length > 0) {\n  mensaje += '❌ *Produtos não encontrados:*\\n';\n  noEncontrados.forEach(v => {\n    mensaje += `   • ${v.produto}\\n`;\n  });\n  mensaje += '\\n';\n}\n\nif (sinPrecios.length > 0) {\n  mensaje += '📭 *Sem preços cadastrados:*\\n';\n  sinPrecios.forEach(v => {\n    mensaje += `   • ${v.produto}\\n`;\n  });\n  mensaje += '\\n';\n}\n\nif (desactualizados.length > 0) {\n  mensaje += '⏰ *Preços desatualizados:*\\n';\n  desactualizados.forEach(v => {\n    mensaje += `   • ${v.produto} (há ${v.dias_atras} dias`;\n    if (v.ultimo_fornecedor) {\n      mensaje += ` - ${v.ultimo_fornecedor}`;\n    }\n    mensaje += ')\\n';\n  });\n  mensaje += '\\n';\n}\n\nmensaje += '━━━━━━━━━━━━━━━━\\n';\nmensaje += '*Opções:*\\n';\nmensaje += '1️⃣ Continuar mesmo assim\\n';\nmensaje += '2️⃣ Atualizar preços primeiro (digite \"2\")\\n\\n';\nmensaje += 'O que prefere?';\n\nreturn [{\n  json: {\n    ...$input.first().json,\n    mensaje_aviso: mensaje,\n    continuar_busqueda: false,\n    necessita_resposta_usuario: true\n  }\n}];\n\n} catch (error) {\n  console.error(`[Generar Mensaje Aviso] Error: ${error.message}`);\n  console.error(`[Generar Mensaje Aviso] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Generar Mensaje Aviso',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3328,
+        440
+      ],
+      "id": "GENERATE_WARNING_MESSAGE",
+      "name": "Generar Mensaje Aviso"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "CHECK_PROBLEMS",
+              "leftValue": "={{ $json.hay_problemas }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3568,
+        440
+      ],
+      "id": "DECIDE_SHOW_WARNING",
+      "name": "¿Mostrar Aviso?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Generar Submenú Preferencias] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Generar Submenú Preferencias',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  // ⚙️ Generar Submenú de Preferencias\nconst usuario = $input.first().json;\nconst porcentaje = usuario.preferencias_porcentaje || 0;\nconst phoneNumber = usuario.whatsapp_number;\n\nconsole.log(`⚙️ [Submenú Pref] Generando para ${usuario.first_name}, ${porcentaje}% completo`);\n\nconst submenu = `⚙️ *PREFERÊNCIAS* (${porcentaje}% completo)\n\nEscolha o que deseja configurar:\n\n1️⃣ Produtos frequentes\n2️⃣ Fornecedores preferidos\n3️⃣ Frequência de compras\n4️⃣ Orçamento mensal\n5️⃣ Condições de pagamento\n6️⃣ Voltar ao menu principal\n\nDigite o número da opção.`;\n\nreturn [{\n  json: {\n    output: submenu,\n    phone_number: phoneNumber,\n    user_data: usuario,\n    is_preferences_menu: true\n  }\n}];\n\n} catch (error) {\n  console.error(`[Generar Submenú Preferencias] Error: ${error.message}`);\n  console.error(`[Generar Submenú Preferencias] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Generar Submenú Preferencias',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        944
+      ],
+      "id": "GENERATE_PREFERENCES_SUBMENU",
+      "name": "Generar Submenú Preferencias"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Detectar Opción Preferencia] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Detectar Opción Preferencia',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  // 🔍 Detectar qué opción del submenú eligió\nconst mensaje = $('Extraer Datos WhatsApp').first().json.message.toLowerCase().trim();\nconst usuario = $input.first().json.user_data;\n\nconsole.log('🔍 [Detectar Opción Pref] Mensaje:', mensaje);\n\nlet opcion = null;\n\nif (mensaje.includes('1') || mensaje.includes('produto') || mensaje.includes('frequente')) {\n  opcion = 'productos_frequentes';\n} else if (mensaje.includes('2') || mensaje.includes('fornecedor')) {\n  opcion = 'fornecedores_preferidos';\n} else if (mensaje.includes('3') || mensaje.includes('frequencia') || mensaje.includes('frequência')) {\n  opcion = 'frequencia_compras';\n} else if (mensaje.includes('4') || mensaje.includes('orçamento') || mensaje.includes('orcamento')) {\n  opcion = 'orcamento_mensal';\n} else if (mensaje.includes('5') || mensaje.includes('pagamento')) {\n  opcion = 'condicoes_pagamento';\n} else if (mensaje.includes('6') || mensaje.includes('voltar') || mensaje.includes('menu')) {\n  opcion = 'voltar_menu';\n} else {\n  opcion = 'mostrar_submenu';\n}\n\nconsole.log(`🔍 [Detectar Opción Pref] Opción: ${opcion}`);\n\nreturn [{\n  json: {\n    opcion_preferencia: opcion,\n    user_data: usuario,\n    phone_number: usuario.whatsapp_number\n  }\n}];\n\n} catch (error) {\n  console.error(`[Detectar Opción Preferencia] Error: ${error.message}`);\n  console.error(`[Detectar Opción Preferencia] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Detectar Opción Preferencia',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2272,
+        944
+      ],
+      "id": "DETECT_PREFERENCE_OPTION",
+      "name": "Detectar Opción Preferencia"
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "output": "={{\n  $json.opcion_preferencia === 'productos_frequentes' ? 0 :\n  $json.opcion_preferencia === 'fornecedores_preferidos' ? 1 :\n  $json.opcion_preferencia === 'frequencia_compras' ? 2 :\n  $json.opcion_preferencia === 'orcamento_mensal' ? 3 :\n  $json.opcion_preferencia === 'condicoes_pagamento' ? 4 :\n  $json.opcion_preferencia === 'voltar_menu' ? 5 :\n  6\n}}",
+        "options": {
+          "outputsAmount": 7
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        2496,
+        944
+      ],
+      "id": "ROUTER_PREFERENCES",
+      "name": "Router Preferencias"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
+        "options": {
+          "systemMessage": "🛒 Você é Frepi, configurando produtos frequentes.\n\n🎯 MISSÃO: Identificar quais produtos o restaurante compra com frequência\n\nPERGUNTAS:\n\"Quais produtos você compra com mais frequência? \n\nPor exemplo: leite, arroz, feijão, óleo, etc.\"\n\nSe o usuário listar produtos, confirme:\n\"Perfeito! Vou registrar:\n• [Produto 1]\n• [Produto 2]\n• [Produto 3]\n\nEstá correto?\"\n\nFORMATO FINAL (quando confirmar):\nPRODUTOS_CONFIGURADOS\nProdutos: [lista separada por comas]\n\n✅ Produtos frequentes atualizados!\n\nTOM: Amigável, eficiente. Use emojis: 🛒 ✅"
+        },
+        "model": {
+          "__rl": {
+            "value": "OpenAI Config Produtos",
+            "mode": "name",
+            "cachedResultName": "OpenAI Config Produtos"
+          }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Memory Config Produtos",
+            "mode": "name",
+            "cachedResultName": "Memory Config Produtos"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2720,
+        800
+      ],
+      "id": "AGENT_CONFIG_PRODUTOS",
+      "name": "Agente Config Produtos",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "OpenAI Config Produtos",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "Memory Config Produtos",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2736,
+        1024
+      ],
+      "id": "LLM_CONFIG_PRODUTOS",
+      "name": "OpenAI Config Produtos",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}_produtos",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2864,
+        1024
+      ],
+      "id": "MEMORY_CONFIG_PRODUTOS",
+      "name": "Memory Config Produtos"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Extraer Datos WhatsApp').first().json.message }}",
+        "options": {
+          "systemMessage": "📦 Você é Frepi, especialista em cadastrar fornecedores.\n\n🎯 MISSÃO: Cadastrar ou atualizar dados de um fornecedor\n\nDADOS NECESSÁRIOS:\n1. Nome do fornecedor\n2. Telefone/WhatsApp\n3. Dias de entrega (ex: Segunda e Quarta, Diário, etc.)\n4. Produtos que fornece (lista)\n\nPERGUNTAS (uma por vez):\n\"Qual é o nome do fornecedor?\"\n\"Qual é o telefone/WhatsApp dele?\"\n\"Quais dias ele faz entregas?\"\n\"Quais produtos ele fornece?\"\n\nFORMATO FINAL (quando tiver TODOS):\nFORNECEDOR_CADASTRADO\nNome: [nome]\nTelefone: [telefone]\nDias: [dias]\nProdutos: [produto1, produto2, ...]\n\n✅ Fornecedor cadastrado com sucesso!\n\n💡 SEJA CONSULTIVO:\nQuando terminar de cadastrar o fornecedor, ofereça ajuda:\n\"Ótimo! Já tem os preços deste fornecedor para cadastrar também?\nPosso te ajudar com isso agora!\"\n\nTOM: Profissional, eficiente. Use emojis: 📦 📞 📅 ✅"
+        },
+        "model": {
+          "__rl": {
+            "value": "OpenAI Register Fornecedor",
+            "mode": "name",
+            "cachedResultName": "OpenAI Register Fornecedor"
+          }
+        },
+        "memory": {
+          "__rl": {
+            "value": "Memory Register Fornecedor",
+            "mode": "name",
+            "cachedResultName": "Memory Register Fornecedor"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2048,
+        336
+      ],
+      "id": "AGENT_REGISTER_FORNECEDOR",
+      "name": "Agente Registrar Fornecedor"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "timeout": 30000,
+          "maxRetries": 3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2064,
+        560
+      ],
+      "id": "LLM_REGISTER_FORNECEDOR",
+      "name": "OpenAI Register Fornecedor",
+      "credentials": {
+        "openAiApi": {
+          "id": "MdAepMtuPO5nFVI0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}_fornecedor",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2192,
+        560
+      ],
+      "id": "MEMORY_REGISTER_FORNECEDOR",
+      "name": "Memory Register Fornecedor"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🔍 Detectar si cadastro de fornecedor está completo\nconst agentOutput = $input.first().json.output;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('🔍 [Detect Fornecedor] Analizando output');\n\nconst isComplete = agentOutput.includes('FORNECEDOR_CADASTRADO');\n\nlet dadosFornecedor = {\n  nome: null,\n  telefone: null,\n  dias: null,\n  produtos: []\n};\n\nif (isComplete) {\n  try {\n    const lines = agentOutput.split('\\n');\n    for (const line of lines) {\n      if (line.includes('Nome:')) {\n        dadosFornecedor.nome = line.split(':')[1].trim();\n      }\n      if (line.includes('Telefone:')) {\n        dadosFornecedor.telefone = line.split(':')[1].trim();\n      }\n      if (line.includes('Dias:')) {\n        dadosFornecedor.dias = line.split(':')[1].trim();\n      }\n      if (line.includes('Produtos:')) {\n        const produtosStr = line.split(':')[1].trim();\n        dadosFornecedor.produtos = produtosStr.split(',').map(p => p.trim());\n      }\n    }\n    console.log('✅ [Detect Fornecedor] Datos extraídos:', dadosFornecedor);\n  } catch (error) {\n    console.error('❌ [Detect Fornecedor] Error parsing:', error);\n  }\n}\n\nconst outputLimpio = agentOutput\n  .replace(/FORNECEDOR_CADASTRADO/g, '')\n  .replace(/Nome:.*\\n/g, '')\n  .replace(/Telefone:.*\\n/g, '')\n  .replace(/Dias:.*\\n/g, '')\n  .replace(/Produtos:.*\\n/g, '')\n  .trim();\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    cadastro_completo: isComplete,\n    dados_fornecedor: dadosFornecedor,\n    output: outputLimpio || agentOutput\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        336
+      ],
+      "id": "DETECT_FORNECEDOR_COMPLETE",
+      "name": "Detectar Fornecedor Completo"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 💾 Guardar fornecedor y productos en Supabase\nconst datos = $input.first().json.dados_fornecedor;\nconst phoneNumber = $input.first().json.phone_number;\n\nconsole.log('💾 [Guardar Fornecedor] Guardando:', datos.nome);\n\ntry {\n  // 1. Guardar/Actualizar fornecedor\n  const { data: existingSupplier } = await $supabase\n    .from('suppliers')\n    .select('id')\n    .ilike('company_name', datos.nome)\n    .single();\n  \n  let supplierId;\n  \n  if (existingSupplier) {\n    // Actualizar\n    await $supabase\n      .from('suppliers')\n      .update({\n        whatsapp_number: datos.telefone,\n        delivery_days: { dias: datos.dias },\n        updated_at: new Date().toISOString()\n      })\n      .eq('id', existingSupplier.id);\n    \n    supplierId = existingSupplier.id;\n    console.log('✅ Fornecedor actualizado:', supplierId);\n  } else {\n    // Crear nuevo\n    const { data: newSupplier } = await $supabase\n      .from('suppliers')\n      .insert({\n        company_name: datos.nome,\n        whatsapp_number: datos.telefone,\n        delivery_days: { dias: datos.dias },\n        is_active: true,\n        created_at: new Date().toISOString()\n      })\n      .select('id')\n      .single();\n    \n    supplierId = newSupplier.id;\n    console.log('✅ Novo fornecedor criado:', supplierId);\n  }\n  \n  // 2. Guardar productos del fornecedor\n  for (const producto of datos.produtos) {\n    // Buscar en master_list\n    const { data: masterProduct } = await $supabase\n      .from('master_list')\n      .select('id')\n      .ilike('product_name', `%${producto}%`)\n      .limit(1)\n      .single();\n    \n    const masterListId = masterProduct?.id || null;\n    \n    // Crear en supplier_mapped_products\n    await $supabase\n      .from('supplier_mapped_products')\n      .insert({\n        supplier_id: supplierId,\n        master_list_id: masterListId,\n        supplier_product_name: producto,\n        current_unit_price: 0,\n        currency: 'BRL',\n        mapping_confidence: masterListId ? 0.8 : 0.5,\n        mapping_method: 'user_input',\n        is_active: true,\n        created_at: new Date().toISOString()\n      });\n    \n    console.log(`✅ Produto vinculado: ${producto}`);\n  }\n  \n  return [{\n    json: {\n      output: `✅ Fornecedor *${datos.nome}* cadastrado com sucesso!\\n\\n${datos.produtos.length} produtos vinculados.`,\n      phone_number: phoneNumber,\n      supplier_id: supplierId\n    }\n  }];\n  \n} catch (error) {\n  console.error('❌ [Guardar Fornecedor] Error:', error);\n  return [{\n    json: {\n      output: `❌ Erro ao cadastrar fornecedor. Tente novamente.`,\n      phone_number: phoneNumber,\n      error: error.message\n    }\n  }];\n}",
+        "credentials": {
+          "supabaseApi": {
+            "id": "YaSYB0r907WCaDZK",
+            "name": "Frepi Supabase"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        240
+      ],
+      "id": "SAVE_FORNECEDOR_DB",
+      "name": "Guardar Fornecedor BD"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "FORNECEDOR_COMPLETE",
+              "leftValue": "={{ $json.cadastro_completo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2560,
+        336
+      ],
+      "id": "IF_FORNECEDOR_COMPLETE",
+      "name": "¿Fornecedor Completo?"
+    },
+    {
+      "id": "HANDLE_DUPLICATE_SUPPLIER_DECISION",
+      "name": "Handle Duplicate Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1860,
+        2328
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Handle Duplicate Decision] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Handle Duplicate Decision',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const data = input.json;\nconst mensaje = data.message.toLowerCase();\nconst existingSuppliers = data.existing_suppliers;\nconst newSupplierData = data.new_supplier_data;\nconst phoneNumber = data.phone_number;\n\nconsole.log(`🔀 [Handle Duplicate] Opción elegida: \"${mensaje}\"`);\n\n// Opción 1: Crear nuevo de todos modos\nif (mensaje.includes('1') || mensaje.includes('criar') || mensaje.includes('novo')) {\n  console.log('✅ [Handle Duplicate] Usuario eligió: CREAR NUEVO');\n\n  const { data: newSupplier, error: insertError } = await $supabase\n    .from('suppliers')\n    .insert({\n      company_name: newSupplierData.nome,\n      whatsapp_number: newSupplierData.telefone,\n      delivery_days: { dias: newSupplierData.dias },\n      is_active: true,\n      created_at: new Date().toISOString()\n    })\n    .select('id')\n    .single();\n\n  if (insertError) {\n    return [{\n      json: {\n        success: false,\n        error: insertError.message,\n        output: `❌ Erro ao cadastrar: ${insertError.message}`,\n        phone_number: phoneNumber\n      }\n    }];\n  }\n\n  const supplierId = newSupplier.id;\n\n  // Link products\n  if (newSupplierData.produtos && newSupplierData.produtos.length > 0) {\n    for (const produto of newSupplierData.produtos) {\n      await $supabase\n        .from('supplier_mapped_products')\n        .insert({\n          supplier_id: supplierId,\n          supplier_product_name: produto,\n          current_unit_price: 0,\n          is_active: true\n        });\n    }\n  }\n\n  return [{\n    json: {\n      success: true,\n      action: 'created_new',\n      supplier_id: supplierId,\n      output: `✅ *Novo fornecedor cadastrado!*\\n\\n📦 *${newSupplierData.nome}*\\n\\nDigite \"menu\" para voltar.`,\n      phone_number: phoneNumber\n    }\n  }];\n}\n\n// Opción 2: Atualizar existente\nif (mensaje.includes('2') || mensaje.includes('atualizar') || mensaje.includes('sobrescrever')) {\n  console.log('✅ [Handle Duplicate] Usuario eligió: ATUALIZAR EXISTENTE');\n\n  const targetSupplier = existingSuppliers[0]; // First one\n\n  const { error: updateError } = await $supabase\n    .from('suppliers')\n    .update({\n      whatsapp_number: newSupplierData.telefone,\n      delivery_days: { dias: newSupplierData.dias },\n      updated_at: new Date().toISOString()\n    })\n    .eq('id', targetSupplier.id);\n\n  if (updateError) {\n    return [{\n      json: {\n        success: false,\n        error: updateError.message,\n        output: `❌ Erro ao atualizar: ${updateError.message}`,\n        phone_number: phoneNumber\n      }\n    }];\n  }\n\n  // Add new products\n  if (newSupplierData.produtos && newSupplierData.produtos.length > 0) {\n    for (const produto of newSupplierData.produtos) {\n      await $supabase\n        .from('supplier_mapped_products')\n        .insert({\n          supplier_id: targetSupplier.id,\n          supplier_product_name: produto,\n          current_unit_price: 0,\n          is_active: true\n        });\n    }\n  }\n\n  return [{\n    json: {\n      success: true,\n      action: 'updated_existing',\n      supplier_id: targetSupplier.id,\n      output: `✅ *Fornecedor atualizado!*\\n\\n📦 *${targetSupplier.company_name}*\\n\\nDigite \"menu\" para voltar.`,\n      phone_number: phoneNumber\n    }\n  }];\n}\n\n// Opción 3: Cancelar\nif (mensaje.includes('3') || mensaje.includes('cancelar') || mensaje.includes('não')) {\n  console.log('❌ [Handle Duplicate] Usuario eligió: CANCELAR');\n\n  return [{\n    json: {\n      success: false,\n      action: 'cancelled',\n      output: `❌ Cadastro cancelado.\\n\\nDigite \"menu\" para voltar ao menu principal.`,\n      phone_number: phoneNumber\n    }\n  }];\n}\n\n// No valid option\nreturn [{\n  json: {\n    output: `❓ Por favor, escolha uma opção válida (1, 2 ou 3).`,\n    phone_number: phoneNumber,\n    needs_user_decision: true\n  }\n}];\n\n} catch (error) {\n  console.error(`[Handle Duplicate Decision] Error: ${error.message}`);\n  console.error(`[Handle Duplicate Decision] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Handle Duplicate Decision',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      }
+    },
+    {
+      "id": "CHECK_IF_DUPLICATE",
+      "name": "Check If Duplicate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1660,
+        2328
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.duplicate_found }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "DETECT_DUPLICATE_DECISION",
+      "name": "Detectar Decisión Duplicado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        2528
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Detectar Decisión Duplicado] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Detectar Decisión Duplicado',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const data = input.json;\nconst output = data.output || '';\n\nconsole.log(`🔍 [Detectar Decisión] Output: ${output.substring(0, 100)}...`);\n\n// Check if this is a duplicate decision response\nif (output.includes('DECISAO_DUPLICADO:')) {\n  const match = output.match(/DECISAO_DUPLICADO:(\\d)/);\n  if (match) {\n    const decision = match[1];\n    console.log(`✅ [Detectar Decisión] Detectada decisión de duplicado: ${decision}`);\n\n    return [{\n      json: {\n        ...input,\n        is_duplicate_decision: true,\n        duplicate_choice: decision,\n        message: decision, // Simulate user message for handler\n        output_route: 0  // Route to handler\n      }\n    }];\n  }\n}\n\n// Not a duplicate decision - continue normal flow\nconsole.log(`➡️ [Detectar Decisión] No es decisión de duplicado, flujo normal`);\nreturn [{\n  json: {\n    ...input,\n    is_duplicate_decision: false,\n    output_route: 1  // Route to normal save\n  }\n}];\n\n} catch (error) {\n  console.error(`[Detectar Decisión Duplicado] Error: ${error.message}`);\n  console.error(`[Detectar Decisión Duplicado] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Detectar Decisión Duplicado',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      }
+    },
+    {
+      "id": "ROUTER_DUPLICATE_DECISION",
+      "name": "Router: ¿Es Decisión Duplicado?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1700,
+        2528
+      ],
+      "parameters": {
+        "mode": "expression",
+        "output": "={{ $json.is_duplicate_decision ? 0 : 1 }}",
+        "options": {
+          "outputsAmount": 2
+        }
+      }
+    },
+    {
+      "id": "DETECTAR_OPCAO_CONTINUACAO",
+      "name": "Detectar Opção Continuação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        2928
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Detectar Opção Continuação] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Detectar Opção Continuação',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const mensaje = $input.first().json.message.toLowerCase();\nconst usuario = $input.first().json;\n\nconsole.log(`🔍 [Continuação] Mensaje: \"${mensaje}\"`);\n\n// Opción 1: Fazer outra compra\nif (mensaje.includes('1') ||\n    mensaje.includes('compra') ||\n    mensaje.includes('pedido') ||\n    mensaje.includes('fazer compra') ||\n    mensaje.includes('outra compra')) {\n  console.log('✅ [Continuação] Detectado: FAZER_COMPRA');\n  return [{\n    json: {\n      ...usuario,\n      continuation_action: 'FAZER_COMPRA',\n      output_route: 0\n    }\n  }];\n}\n\n// Opción 2: Atualizar preços\nif (mensaje.includes('2') ||\n    mensaje.includes('preço') ||\n    mensaje.includes('atualizar') ||\n    mensaje.includes('cadastrar preço')) {\n  console.log('✅ [Continuação] Detectado: ATUALIZAR_PRECOS');\n  return [{\n    json: {\n      ...usuario,\n      continuation_action: 'ATUALIZAR_PRECOS',\n      output_route: 1\n    }\n  }];\n}\n\n// Opción 3: Registrar fornecedor\nif (mensaje.includes('3') ||\n    mensaje.includes('fornecedor') ||\n    mensaje.includes('registrar fornecedor')) {\n  console.log('✅ [Continuação] Detectado: REGISTRAR_FORNECEDOR');\n  return [{\n    json: {\n      ...usuario,\n      continuation_action: 'REGISTRAR_FORNECEDOR',\n      output_route: 2\n    }\n  }];\n}\n\n// Opción 4 o por defecto: Ver menú principal\nif (mensaje.includes('4') ||\n    mensaje.includes('menu') ||\n    mensaje.includes('voltar') ||\n    mensaje.includes('não') ||\n    mensaje.includes('nao')) {\n  console.log('✅ [Continuação] Detectado: MOSTRAR_MENU');\n  return [{\n    json: {\n      ...usuario,\n      continuation_action: 'MOSTRAR_MENU',\n      output_route: 3\n    }\n  }];\n}\n\n// Por defecto, volver al menú\nconsole.log('⚠️ [Continuação] Opción no reconocida, volviendo al menú');\nreturn [{\n  json: {\n    ...usuario,\n    continuation_action: 'MOSTRAR_MENU',\n    output_route: 3\n  }\n}];\n\n} catch (error) {\n  console.error(`[Detectar Opção Continuação] Error: ${error.message}`);\n  console.error(`[Detectar Opção Continuação] Stack: ${error.stack}`);\n\n\n  // 🔄 Resetear flag de continuación en la base de datos\n  await $supabase\n    .from('line_sessions')\n    .update({ awaiting_continuation: false })\n    .eq('user_id', usuario.user_id);\n\n  console.log('✅ [Detectar Continuação] Reset awaiting_continuation = false');\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Detectar Opção Continuação',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+      }
+    },
+    {
+      "id": "ROUTER_CONTINUACAO",
+      "name": "Router Continuação",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        2200,
+        3128
+      ],
+      "parameters": {
+        "mode": "expression",
+        "output": "={{ $json.output_route }}",
+        "options": {
+          "outputsAmount": 4
+        }
+      }
+    },
+    {
+      "id": "CONTINUATION_HANDLER_COMBINED",
+      "name": "Continuation Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        3328
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// ===== COMBINED CONTINUATION HANDLER =====\n// This node combines: Mark Session + Update DB + Ask Continuation\n\n// ===== STRUCTURED LOGGING =====\nconst LOG = {\n  prefix: '[Continuation Handler]',\n  info: (msg, data) => console.log(`${LOG.prefix} ℹ️  ${msg}`, data !== undefined ? JSON.stringify(data).substring(0, 200) : ''),\n  success: (msg, data) => console.log(`${LOG.prefix} ✅ ${msg}`, data !== undefined ? JSON.stringify(data).substring(0, 200) : ''),\n  error: (msg, err) => console.error(`${LOG.prefix} ❌ ${msg}`, err || ''),\n  warn: (msg) => console.warn(`${LOG.prefix} ⚠️  ${msg}`)\n};\n// ===== END LOGGING =====\n\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    LOG.error('Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Continuation Handler',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  const data = input.json;\n  const sessionId = data.session_id;\n  const phoneNumber = data.phone_number || data.user_data?.phone_number;\n\n  LOG.info('Processing continuation', { sessionId, phoneNumber });\n\n  // Get continuation message from Config\n  const continuationMessage = $('Config Global').first().json.CONTINUATION_MESSAGE;\n\n  // STEP 1: Prepare session update data (will be used by next Supabase node)\n  const sessionUpdate = sessionId ? {\n    session_id: sessionId,\n    session_end: new Date().toISOString(),\n    is_completed: true,\n    last_activity_at: new Date().toISOString()\n  } : null;\n\n  if (!sessionId) {\n    LOG.warn('No session_id found, skipping session update');\n  } else {\n    LOG.success('Session prepared for completion', { sessionId });\n  }\n\n  // STEP 2: Return data with continuation message\n  const result = {\n    ...data,\n    output: continuationMessage,\n    phone_number: phoneNumber,\n    awaiting_continuation: true,\n    session_completed: true,\n    _session_update: sessionUpdate\n  };\n\n  LOG.success('Continuation handler completed');\n\n  return [{ json: result }];\n\n} catch (error) {\n  LOG.error(`Error: ${error.message}`);\n  LOG.error(`Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Continuation Handler',\n      phone_number: input?.json?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END COMBINED CONTINUATION HANDLER ====="
+      }
+    },
+    {
+      "id": "UPDATE_SESSION_DB",
+      "name": "Update Session DB",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        3328
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "tableId": "line_sessions",
+        "filterType": "manual",
+        "filterBy": "={{ $json._session_update ? $json._session_update.session_id : null }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_end",
+              "fieldValue": "={{ $json._session_update ? $json._session_update.session_end : $now }}"
+            },
+            {
+              "fieldId": "is_completed",
+              "fieldValue": "={{ $json._session_update ? true : false }}"
+            },
+            {
+              "fieldId": "last_activity_at",
+              "fieldValue": "={{ $json._session_update ? $json._session_update.last_activity_at : $now }}"
+            },
+            {
+              "fieldId": "awaiting_continuation",
+              "fieldValue": "={{ $json.awaiting_continuation || false }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "3e126228-783d-41bf-8549-90a1017694cc",
+      "name": "¿Es Continuación?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "CONTINUATION_CHECK",
+              "leftValue": "={{ $('Buscar Sesión Activa').first().json.awaiting_continuation }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "notes": "Verifica si el usuario está esperando responder a mensaje de continuación"
+    },
+    {
+      "id": "5891bd9d-a9cc-4842-9f8b-058da0d99ba8",
+      "name": "Buscar Sesión de Onboarding",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        868
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "line_sessions",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "condition": "and",
+              "conditions": [
+                {
+                  "keyName": "phone_number",
+                  "condition": "eq",
+                  "keyValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}"
+                },
+                {
+                  "keyName": "session_type",
+                  "condition": "eq",
+                  "keyValue": "onboarding"
+                },
+                {
+                  "keyName": "is_completed",
+                  "condition": "eq",
+                  "keyValue": "false"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "notes": "Busca sesión de onboarding activa (no completada) del usuario"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config Global",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "¿Archivo No Soportado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Usuario": {
+      "main": [
+        [
+          {
+            "node": "Buscar Sesión Activa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Usuario Existe?": {
+      "main": [
+        [
+          {
+            "node": "Calcular % Preferencias",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Sesión de Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Onboarding Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Onboarding Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Onboarding Agent": {
+      "main": [
+        [
+          {
+            "node": "Detectar Onboarding Completo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Sesión Activa": {
+      "main": [
+        [
+          {
+            "node": "¿Es Continuación?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Existe Sesión Onboarding?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contexto de Sesión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear Nueva Sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contexto de Sesión": {
+      "main": [
+        [
+          {
+            "node": "Onboarding Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Nueva Sesión": {
+      "main": [
+        [
+          {
+            "node": "Preparar Input para Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Onboarding Completo": {
+      "main": [
+        [
+          {
+            "node": "¿Onboarding Completo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Onboarding Completo?": {
+      "main": [
+        [
+          {
+            "node": "Guardar Restaurante",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Actualizar Sesión Parcial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Restaurante": {
+      "main": [
+        [
+          {
+            "node": "Buscar Restaurante Recién Creado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Restaurante Recién Creado": {
+      "main": [
+        [
+          {
+            "node": "Extraer ID Restaurante",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer ID Restaurante": {
+      "main": [
+        [
+          {
+            "node": "Guardar Contacto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Contacto": {
+      "main": [
+        [
+          {
+            "node": "Marcar Sesión Completa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Sesión Completa": {
+      "main": [
+        [
+          {
+            "node": "Preparar Mensaje Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Sesión Parcial": {
+      "main": [
+        [
+          {
+            "node": "Preparar Output Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Output Onboarding": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Mensaje Final": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente de Compras",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Sesión de Compra": {
+      "main": [
+        [
+          {
+            "node": "Vector Search Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente de Compras",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente de Compras": {
+      "main": [
+        [
+          {
+            "node": "Extraer Respuesta Agente Compras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Respuesta Agente Compras": {
+      "main": [
+        [
+          {
+            "node": "Detectar Pedido Completo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Setup Completo": {
+      "main": [
+        [
+          {
+            "node": "¿Setup Completo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Setup Completo?": {
+      "main": [
+        [
+          {
+            "node": "Agente de Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear Sesión de Setup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Sesión de Setup": {
+      "main": [
+        [
+          {
+            "node": "Agente de Setup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente de Setup",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente de Setup",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente de Setup": {
+      "main": [
+        [
+          {
+            "node": "Detectar Setup Completo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Setup Completo": {
+      "main": [
+        [
+          {
+            "node": "¿Setup Finalizado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Setup Finalizado?": {
+      "main": [
+        [
+          {
+            "node": "Extraer Preferencias del Setup",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos para Guardar": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Restaurante con Preferencias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Restaurante con Preferencias": {
+      "main": [
+        [
+          {
+            "node": "Limpiar Output Después de Guardar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Preferencias del Setup": {
+      "main": [
+        [
+          {
+            "node": "Extraer JSON de Preferencias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer JSON de Preferencias": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos para Guardar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extraer JSON de Preferencias",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory3": {
+      "ai_memory": [
+        [
+          {
+            "node": "Extraer JSON de Preferencias",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar Output Después de Guardar": {
+      "main": [
+        [
+          {
+            "node": "Agente de Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente de Menú Principal": {
+      "main": [
+        [
+          {
+            "node": "Detectar Acción del Agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente de Menú Principal",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory4": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente de Menú Principal",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Acción del Agente": {
+      "main": [
+        [
+          {
+            "node": "Router de Acciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router de Acciones": {
+      "main": [
+        [
+          {
+            "node": "Crear Sesión de Compra",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generar Submenú Preferencias",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Datos Subir Precios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agente Registrar Fornecedor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Search Products": {
+      "main": [
+        [
+          {
+            "node": "Agente de Compras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Input para Onboarding": {
+      "main": [
+        [
+          {
+            "node": "Onboarding Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos Subir Precios": {
+      "main": [
+        [
+          {
+            "node": "Crear Sesión Subir Precios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Sesión Subir Precios": {
+      "main": [
+        [
+          {
+            "node": "Agente Subir Precios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Subir Precios": {
+      "main": [
+        [
+          {
+            "node": "Detectar Precios Completos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente Subir Precios",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory5": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente Subir Precios",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Precios Completos": {
+      "main": [
+        [
+          {
+            "node": "¿Precios Completos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Precios Completos?": {
+      "main": [
+        [
+          {
+            "node": "Procesar y Guardar Precios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Continuation Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar y Guardar Precios": {
+      "main": [
+        [
+          {
+            "node": "Continuation Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Pedido Completo": {
+      "main": [
+        [
+          {
+            "node": "¿Pedido Completo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Pedido Completo?": {
+      "main": [
+        [
+          {
+            "node": "Validar Disponibilidad Precios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Precios Todos Proveedores": {
+      "main": [
+        [
+          {
+            "node": "Generar Recomendación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Recomendación": {
+      "main": [
+        [
+          {
+            "node": "Continuation Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular % Preferencias": {
+      "main": [
+        [
+          {
+            "node": "Verificar Setup Completo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Archivo No Soportado?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Disponibilidad Precios": {
+      "main": [
+        [
+          {
+            "node": "Generar Mensaje Aviso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Mensaje Aviso": {
+      "main": [
+        [
+          {
+            "node": "¿Mostrar Aviso?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Mostrar Aviso?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Precios Todos Proveedores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Config Produtos": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Registrar Fornecedor": {
+      "main": [
+        [
+          {
+            "node": "Detectar Decisión Duplicado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Register Fornecedor": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente Registrar Fornecedor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory Register Fornecedor": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente Registrar Fornecedor",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Fornecedor Completo": {
+      "main": [
+        [
+          {
+            "node": "¿Fornecedor Completo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Fornecedor Completo?": {
+      "main": [
+        [
+          {
+            "node": "Guardar Fornecedor BD",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Fornecedor BD": {
+      "main": [
+        [
+          {
+            "node": "Check If Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Submenú Preferencias": {
+      "main": [
+        [
+          {
+            "node": "Detectar Opción Preferencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Opción Preferencia": {
+      "main": [
+        [
+          {
+            "node": "Router Preferencias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router Preferencias": {
+      "main": [
+        [
+          {
+            "node": "Agente Config Produtos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generar Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generar Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generar Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generar Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generar Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generar Submenú Preferencias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Config Produtos": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente Config Produtos",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory Config Produtos": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente Config Produtos",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Menú Principal": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Continuation Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Continuation Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Duplicate Decision": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Decisión Duplicado": {
+      "main": [
+        [
+          {
+            "node": "Router: ¿Es Decisión Duplicado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router: ¿Es Decisión Duplicado?": {
+      "main": [
+        [
+          {
+            "node": "Handle Duplicate Decision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Detectar Fornecedor Completo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Opção Continuação": {
+      "main": [
+        [
+          {
+            "node": "Router Continuação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router Continuação": {
+      "main": [
+        [
+          {
+            "node": "Crear Sesión de Compra",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Datos Subir Precios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agente Registrar Fornecedor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generar Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continuation Handler": {
+      "main": [
+        [
+          {
+            "node": "Update Session DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Session DB": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Global": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es Continuación?": {
+      "main": [
+        [
+          {
+            "node": "Detectar Opção Continuação",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Usuario Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Sesión de Onboarding": {
+      "main": [
+        [
+          {
+            "node": "¿Existe Sesión Onboarding?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "NEW_VERSION_ENHANCED",
+  "meta": {
+    "instanceId": "49b8809ac9c6d78ac189292d079f6fecdaf436806e595e6107033a10240b1fea"
+  },
+  "id": "Rhy2ubYkQfWzXy92_enhanced",
+  "tags": []
+}
