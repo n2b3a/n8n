@@ -2254,6 +2254,28 @@
         }
       },
       "notes": "Busca sesión de onboarding activa (no completada) del usuario"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.accion }}",
+              "operation": "notEquals",
+              "value2": "mostrar_respuesta"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "es_accion_real_-7284607861774573902",
+      "name": "¿Es Acción Real?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1676,
+        608
+      ]
     }
   ],
   "pinData": {},
@@ -2781,7 +2803,7 @@
       "main": [
         [
           {
-            "node": "Router de Acciones",
+            "node": "¿Es Acción Real?",
             "type": "main",
             "index": 0
           }
@@ -3384,6 +3406,24 @@
         [
           {
             "node": "¿Existe Sesión Onboarding?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es Acción Real?": {
+      "main": [
+        [
+          {
+            "node": "Router de Acciones",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Respuesta",
             "type": "main",
             "index": 0
           }
