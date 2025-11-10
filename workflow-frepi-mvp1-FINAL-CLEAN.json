@@ -2151,7 +2151,7 @@
         "mode": "expression",
         "output": "={{ $json.output_route }}",
         "options": {
-          "outputsAmount": 4
+          "outputsAmount": 0
         }
       }
     },
