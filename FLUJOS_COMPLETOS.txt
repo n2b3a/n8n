@@ -1,0 +1,57 @@
+================================================================================
+FLUJO 1: HACER COMPRA (desde Router de Acciones output 0)
+================================================================================
+→ Crear Sesión de Compra (supabase)
+  → Vector Search Products (code)
+    → Agente de Compras (agent)
+      → Extraer Respuesta Agente Compras (code)
+        → Detectar Pedido Completo (code)
+          → ¿Pedido Completo? (if)
+            [output 0]
+            → Validar Disponibilidad Precios (code)
+              → Generar Mensaje Aviso (code)
+                → ¿Mostrar Aviso? (if)
+                  [output 0]
+                  → Enviar Respuesta (whatsApp)
+                  [output 1]
+                  → Buscar Precios Todos Proveedores (code)
+                    → Generar Recomendación (code)
+                      → Continuation Handler (code)
+                        → Update Session DB (supabase)
+            [output 1]
+
+
+================================================================================
+FLUJO 2: SUBIR PRECIOS (desde Router de Acciones output 2)
+================================================================================
+→ Preparar Datos Subir Precios (code)
+  → Crear Sesión Subir Precios (supabase)
+    → Agente Subir Precios (agent)
+      → Detectar Precios Completos (code)
+        → ¿Precios Completos? (if)
+          [output 0]
+          → Procesar y Guardar Precios (code)
+            → Continuation Handler (code)
+              → Update Session DB (supabase)
+                → Enviar Respuesta (whatsApp)
+          [output 1]
+
+
+================================================================================
+FLUJO 3: REGISTRAR FORNECEDOR (desde Router de Acciones output 3)
+================================================================================
+→ Agente Registrar Fornecedor (agent)
+  → Detectar Fornecedor Completo (code)
+    → ¿Fornecedor Completo? (if)
+      [output 0]
+      → Guardar Fornecedor BD (code)
+        → Check If Duplicate (if)
+          [output 0]
+          → Continuation Handler (code)
+            → Update Session DB (supabase)
+              → Enviar Respuesta (whatsApp)
+          [output 1]
+          → Router: ¿Es Decisión Duplicado? (switch)
+            [output 0]
+            [output 1]
+      [output 1]

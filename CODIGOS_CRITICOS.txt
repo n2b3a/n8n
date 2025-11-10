@@ -1,0 +1,918 @@
+
+================================================================================
+NODO: Detectar Pedido Completo
+================================================================================
+
+const agentOutput = $input.first().json.output;
+const phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;
+const restaurantId = $('Vector Search Products').first().json.restaurant_id;
+
+console.log('🛒 [Detectar Pedido] Analizando output del agente');
+
+const isPedidoCompleto = agentOutput.includes('PEDIDO_COMPLETO');
+
+let productos = [];
+let outputLimpio = agentOutput;
+
+if (isPedidoCompleto) {
+  try {
+    const lines = agentOutput.split('\n');
+    let inItems = false;
+    
+    for (const line of lines) {
+      if (line.includes('Itens:')) {
+        inItems = true;
+        continue;
+      }
+      if (line.includes('Fornecedor')) {
+        inItems = false;
+      }
+      if (inItems && line.trim().startsWith('-')) {
+        const match = line.match(/- (.+?):\s*([\d.]+)\s*(\w+)/);
+        if (match) {
+          productos.push({
+            produto: match[1].trim(),
+            quantidade: parseFloat(match[2]),
+            unidade: match[3]
+          });
+        }
+      }
+    }
+    
+    console.log(`✅ [Detectar Pedido] ${productos.length} produtos detectados`);
+    
+    outputLimpio = agentOutput
+      .replace(/PEDIDO_COMPLETO/g, '')
+      .trim();
+    
+  } catch (error) {
+    console.error('❌ [Detectar Pedido] Error parseando:', error);
+  }
+}
+
+return [{
+  json: {
+    phone_number: phoneNumber,
+    restaurant_id: restaurantId,
+    pedido_completo: isPedidoCompleto,
+    produtos: productos,
+    output: outputLimpio,
+    original_output: agentOutput
+  }
+}];
+
+
+
+================================================================================
+NODO: Validar Disponibilidad Precios
+================================================================================
+
+// 🔍 Validar disponibilidad de precios antes de procesar pedido
+const productos = $input.first().json.produtos;
+const restaurantId = $input.first().json.restaurant_id;
+const phoneNumber = $input.first().json.phone_number;
+
+console.log(`🔍 [Validar Precios] Verificando ${productos.length} productos`);
+
+const resultados = [];
+let hayProblemas = false;
+
+for (const producto of productos) {
+  try {
+    // Buscar producto en master_list
+    const { data: masterProducts } = await $supabase
+      .from('master_list')
+      .select('id, product_name')
+      .ilike('product_name', `%${producto.produto}%`)
+      .limit(1);
+    
+    if (!masterProducts || masterProducts.length === 0) {
+      resultados.push({
+        produto: producto.produto,
+        problema: 'no_encontrado',
+        mensaje: `Produto "${produto.produto}" não encontrado no catálogo`
+      });
+      hayProblemas = true;
+      console.log(`⚠️ Produto no encontrado: ${produto.produto}`);
+      continue;
+    }
+    
+    const masterListId = masterProducts[0].id;
+    
+    // Verificar precios recientes (< 30 días)
+    const fechaLimite = new Date();
+    fechaLimite.setDate(fechaLimite.getDate() - parseInt($('Config Global').first().json.PRICE_VALIDITY_DAYS));
+    
+    const { data: recentPrices, error } = await $supabase
+      .from('pricing_history')
+      .select('id, supplier_id, unit_price, effective_date, suppliers(company_name)')
+      .eq('master_list_id', masterListId)
+      .gte('effective_date', fechaLimite.toISOString())
+      .order('effective_date', { ascending: false })
+      .limit(5);
+    
+    if (!recentPrices || recentPrices.length === 0) {
+      // Buscar el precio más reciente aunque sea antiguo
+      const { data: oldestPrice } = await $supabase
+        .from('pricing_history')
+        .select('effective_date, suppliers(company_name)')
+        .eq('master_list_id', masterListId)
+        .order('effective_date', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (oldestPrice) {
+        const diasAtras = Math.floor((Date.now() - new Date(oldestPrice.effective_date)) / (1000 * 60 * 60 * 24));
+        resultados.push({
+          produto: produto.produto,
+          problema: 'precos_desatualizados',
+          dias_atras: diasAtras,
+          ultimo_fornecedor: oldestPrice.suppliers?.company_name,
+          mensaje: `Preços desatualizados (há ${diasAtras} dias)`
+        });
+        hayProblemas = true;
+        console.log(`⚠️ Preços antigos para ${produto.produto}: ${diasAtras} días`);
+      } else {
+        resultados.push({
+          produto: produto.produto,
+          problema: 'sin_precios',
+          mensaje: 'Sem preços cadastrados'
+        });
+        hayProblemas = true;
+        console.log(`⚠️ Sin precios: ${produto.produto}`);
+      }
+    } else {
+      resultados.push({
+        produto: produto.produto,
+        problema: null,
+        precos_encontrados: recentPrices.length,
+        mensaje: `✅ ${recentPrices.length} preços atualizados`
+      });
+      console.log(`✅ Preços OK para ${produto.produto}: ${recentPrices.length} opciones`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ Error validando ${producto.produto}:`, error);
+    resultados.push({
+      produto: producto.produto,
+      problema: 'erro',
+      mensaje: 'Erro ao verificar preços'
+    });
+    hayProblemas = true;
+  }
+}
+
+console.log(`🔍 [Validar Precios] Problemas detectados: ${hayProblemas}`);
+
+return [{
+  json: {
+    phone_number: phoneNumber,
+    restaurant_id: restaurantId,
+    produtos: productos,
+    validacion: resultados,
+    hay_problemas: hayProblemas,
+    puede_continuar: true  // Opción B: siempre permitir
+  }
+}];
+
+
+
+================================================================================
+NODO: Buscar Precios Todos Proveedores
+================================================================================
+
+const productos = $input.first().json.produtos;
+const restaurantId = $input.first().json.restaurant_id;
+
+console.log(`🔍 [Buscar Precios] Buscando precios para ${productos.length} productos`);
+
+// Obtener preferencias del restaurante
+const { data: restaurant } = await $supabase
+  .from('restaurants')
+  .select('price_sensitivity, preferred_suppliers')
+  .eq('id', restaurantId)
+  .single();
+
+const priceSensitivity = restaurant?.price_sensitivity || 0.5;
+const preferredSuppliers = restaurant?.preferred_suppliers || [];
+
+console.log(`💡 [Buscar Precios] Price sensitivity: ${priceSensitivity}`);
+
+const resultados = [];
+
+for (const producto of productos) {
+  try {
+    // Buscar en master_list por similaridad
+    const { data: masterProducts } = await $supabase
+      .from('master_list')
+      .select('id, product_name')
+      .ilike('product_name', `%${producto.produto}%`)
+      .limit(3);
+    
+    if (!masterProducts || masterProducts.length === 0) {
+      console.log(`⚠️ Producto no encontrado en catálogo: ${producto.produto}`);
+      resultados.push({
+        produto: producto.produto,
+        quantidade: produto.quantidade,
+        unidade: produto.unidade,
+        opciones: [],
+        no_encontrado: true
+      });
+      continue;
+    }
+    
+    const masterListIds = masterProducts.map(p => p.id);
+    
+    // Buscar TODOS los precios de TODOS los proveedores
+    const { data: supplierPrices } = await $supabase
+      .from('supplier_mapped_products')
+      .select(\`
+        id,
+        supplier_id,
+        supplier_product_name,
+        current_unit_price,
+        price_per_unit_type,
+        suppliers (
+          id,
+          company_name,
+          is_preferred
+        )
+      \`)
+      .in('master_list_id', masterListIds)
+      .eq('is_active', true);
+    
+    if (!supplierPrices || supplierPrices.length === 0) {
+      console.log(`⚠️ No hay precios para: ${producto.produto}`);
+      resultados.push({
+        produto: producto.produto,
+        quantidade: produto.quantidade,
+        unidade: produto.unidade,
+        opciones: [],
+        sin_precios: true
+      });
+      continue;
+    }
+    
+    console.log(`✅ Encontrados ${supplierPrices.length} precios para ${producto.produto}`);
+    
+    // Calcular score para cada opción
+    const opciones = supplierPrices.map(price => {
+      const supplier = price.suppliers;
+      
+      // Score base: precio (invertido y normalizado)
+      const allPrices = supplierPrices.map(p => p.current_unit_price);
+      const minPrice = Math.min(...allPrices);
+      const maxPrice = Math.max(...allPrices);
+      const priceRange = maxPrice - minPrice;
+      
+      let priceScore = 1.0;
+      if (priceRange > 0) {
+        priceScore = 1 - ((price.current_unit_price - minPrice) / priceRange);
+      }
+      
+      // Bonus si es proveedor preferido
+      const preferredBonus = preferredSuppliers.includes(supplier.id) ? 0.2 : 0;
+      
+      // Score final ponderado por price_sensitivity
+      // price_sensitivity alto (0.8) = más importancia a calidad/preferido
+      // price_sensitivity bajo (0.2) = más importancia a precio bajo
+      const finalScore = (priceScore * (1 - priceSensitivity)) + 
+                        (preferredBonus * priceSensitivity);
+      
+      return {
+        supplier_id: supplier.id,
+        supplier_name: supplier.company_name,
+        product_name: price.supplier_product_name,
+        price: price.current_unit_price,
+        unit: price.price_per_unit_type,
+        is_preferred: preferredSuppliers.includes(supplier.id),
+        price_score: priceScore,
+        final_score: finalScore
+      };
+    });
+    
+    // Ordenar por score
+    opciones.sort((a, b) => b.final_score - a.final_score);
+    
+    resultados.push({
+      produto: producto.produto,
+      quantidade: produto.quantidade,
+      unidade: produto.unidade,
+      opciones: opciones,
+      mejor_opcion: opciones[0],
+      total_opciones: opciones.length
+    });
+    
+  } catch (error) {
+    console.error(`❌ Error buscando ${producto.produto}:`, error);
+  }
+}
+
+console.log(`✅ [Buscar Precios] Análisis completo: ${resultados.length} productos`);
+
+return [{
+  json: {
+    phone_number: $input.first().json.phone_number,
+    restaurant_id: restaurantId,
+    price_sensitivity: priceSensitivity,
+    resultados: resultados,
+    productos_analizados: resultados.length
+  }
+}];
+
+
+
+================================================================================
+NODO: Generar Recomendación
+================================================================================
+
+// ===== ERROR HANDLING & INPUT VALIDATION =====
+try {
+  // Validate input
+  const input = $input.first();
+  if (!input || !input.json) {
+    console.error('[Generar Recomendación] Input vacío o inválido');
+    return [{
+      json: {
+        error: true,
+        error_message: 'Input inválido',
+        error_node: 'Generar Recomendación',
+        phone_number: 'unknown'
+      }
+    }];
+  }
+
+  // Original code starts here
+  const resultados = $input.first().json.resultados;
+const phoneNumber = $input.first().json.phone_number;
+const priceSensitivity = $input.first().json.price_sensitivity;
+
+console.log('💎 [Generar Recomendación] Creando mensaje para usuario');
+
+let mensaje = '🎯 *RECOMENDAÇÃO DE COMPRA*\n\n';
+
+let totalEstimado = 0;
+let fornecedorPrincipal = null;
+const fornecedoresUsados = new Set();
+
+for (const item of resultados) {
+  if (item.no_encontrado) {
+    mensaje += `⚠️ *${item.produto}*\n`;
+    mensaje += `Produto não encontrado no catálogo.\n\n`;
+    continue;
+  }
+  
+  if (item.sin_precios) {
+    mensaje += `⚠️ *${item.produto}*\n`;
+    mensaje += `Sem preços cadastrados.\n\n`;
+    continue;
+  }
+  
+  const mejor = item.mejor_opcion;
+  const subtotal = mejor.price * item.quantidade;
+  totalEstimado += subtotal;
+  
+  fornecedoresUsados.add(mejor.supplier_name);
+  
+  mensaje += `✅ *${item.produto}*\n`;
+  mensaje += `📦 ${item.quantidade} ${item.unidade}\n`;
+  mensaje += `🏪 *${mejor.supplier_name}*`;
+  if (mejor.is_preferred) mensaje += ' ⭐ (Preferido)';
+  mensaje += `\n💰 R$ ${mejor.price.toFixed(2)}/${mejor.unit}`;
+  mensaje += ` = *R$ ${subtotal.toFixed(2)}*\n`;
+  
+  // Mostrar alternativas si hay
+  if (item.opciones.length > 1) {
+    mensaje += `\n_Outras opções:_\n`;
+    for (let i = 1; i < Math.min(3, item.opciones.length); i++) {
+      const alt = item.opciones[i];
+      const diff = ((alt.price - mejor.price) / mejor.price * 100).toFixed(0);
+      const signo = diff > 0 ? '+' : '';
+      mensaje += `   • ${alt.supplier_name}: R$ ${alt.price.toFixed(2)} (${signo}${diff}%)\n`;
+    }
+  }
+  
+  mensaje += '\n';
+}
+
+mensaje += `━━━━━━━━━━━━━━━━\n`;
+mensaje += `💵 *TOTAL ESTIMADO: R$ ${totalEstimado.toFixed(2)}*\n\n`;
+
+if (fornecedoresUsados.size === 1) {
+  mensaje += `✨ Você pode fazer tudo com *${[...fornecedoresUsados][0]}*!\n\n`;
+} else {
+  mensaje += `📋 Fornecedores sugeridos: ${[...fornecedoresUsados].join(', ')}\n\n`;
+}
+
+// Explicar criterio
+if (priceSensitivity < 0.4) {
+  mensaje += '💡 _Priorizei menor preço_\n';
+} else if (priceSensitivity > 0.6) {
+  mensaje += '💡 _Priorizei qualidade e fornecedores preferidos_\n';
+} else {
+  mensaje += '💡 _Priorizei equilíbrio entre preço e qualidade_\n';
+}
+
+mensaje += '\nEsta é uma recomendação. Você precisa fazer o pedido diretamente com os fornecedores? 👍';
+
+console.log('✅ [Generar Recomendación] Mensaje creado');
+
+// Agregar nota si hay precios desactualizados
+if (hayProblemas) {
+  mensaje += `\n\n⚠️ *Nota Importante*
+
+Alguns preços estão desatualizados (> 30 dias).
+Recomendo atualizar seus preços para recomendações mais precisas.
+
+Digite "2" para atualizar preços agora.`;
+}
+
+return [{
+  json: {
+    output: mensaje,
+    phone_number: phoneNumber,
+    total_estimado: totalEstimado,
+    fornecedores: [...fornecedoresUsados]
+  }
+}];
+
+} catch (error) {
+  console.error(`[Generar Recomendación] Error: ${error.message}`);
+  console.error(`[Generar Recomendación] Stack: ${error.stack}`);
+
+  return [{
+    json: {
+      error: true,
+      error_message: error.message,
+      error_node: 'Generar Recomendación',
+      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',
+      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite "menu" para voltar.'
+    }
+  }];
+}
+// ===== END ERROR HANDLING =====
+
+
+
+================================================================================
+NODO: Detectar Precios Completos
+================================================================================
+
+const agentOutput = $input.first().json.output;
+const phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;
+
+console.log('💰 [Detectar Precios] Output del agente:', agentOutput);
+
+const isPricesComplete = agentOutput.includes('PRECOS_CONFIRMADOS');
+
+let preciosData = [];
+let outputLimpio = agentOutput;
+
+if (isPricesComplete) {
+  try {
+    const jsonMatch = agentOutput.match(/\[\s*\{[\s\S]*?\}\s*\]/);    if (jsonMatch) {
+      preciosData = JSON.parse(jsonMatch[0]);
+      console.log('✅ [Detectar Precios] Precios parseados:', preciosData.length);
+    }
+    
+    outputLimpio = agentOutput
+      .replace(/PRECOS_CONFIRMADOS/g, '')
+      .replace(/\[\s*\{[\s\S]*?\}\s*\]/g, '')
+      .trim();
+    
+    if (!outputLimpio || outputLimpio.length < 10) {
+      outputLimpio = 'Pronto! Preços cadastrados com sucesso! ✅';
+    }
+  } catch (error) {
+    console.error('❌ [Detectar Precios] Error parseando:', error);
+  }
+}
+
+return [{
+  json: {
+    phone_number: phoneNumber,
+    prices_complete: isPricesComplete,
+    prices_data: preciosData,
+    output: outputLimpio,
+    original_output: agentOutput
+  }
+}];
+
+
+
+================================================================================
+NODO: Procesar y Guardar Precios
+================================================================================
+
+// 🔄 Procesar cada precio y guardarlo
+const pricesData = $input.first().json.prices_data;
+const restaurantId = $('Preparar Datos Subir Precios').first().json.restaurant_id;
+
+console.log('💾 [Procesar Precios] Procesando', pricesData.length, 'precios');
+
+const results = [];
+
+for (const item of pricesData) {
+  try {
+    // 1. Buscar o crear proveedor
+    let supplierId = null;
+    
+    const { data: existingSupplier } = await $supabase
+      .from('suppliers')
+      .select('id')
+      .ilike('company_name', item.fornecedor)
+      .limit(1)
+      .single();
+    
+    if (existingSupplier) {
+      supplierId = existingSupplier.id;
+      console.log('✅ Proveedor existente:', item.fornecedor, supplierId);
+    } else {
+      const { data: newSupplier, error } = await $supabase
+        .from('suppliers')
+        .insert({
+          company_name: item.fornecedor,
+          is_active: true,
+          created_at: new Date().toISOString()
+        })
+        .select('id')
+        .single();
+      
+      if (!error && newSupplier) {
+        supplierId = newSupplier.id;
+        console.log('✅ Nuevo proveedor creado:', item.fornecedor, supplierId);
+      }
+    }
+    
+    if (!supplierId) {
+      console.error('❌ No se pudo obtener supplier_id para:', item.fornecedor);
+      continue;
+    }
+    
+    // 2. Buscar producto en master_list
+    const { data: masterProduct } = await $supabase
+      .from('master_list')
+      .select('id')
+      .ilike('product_name', `%${item.producto}%`)
+      .limit(1)
+      .single();
+    
+    const masterListId = masterProduct?.id || null;
+    
+    // 3. Guardar en supplier_mapped_products
+    const { data: mappedProduct, error: mapError } = await $supabase
+      .from('supplier_mapped_products')
+      .insert({
+        supplier_id: supplierId,
+        master_list_id: masterListId,
+        supplier_product_name: item.produto,
+        current_unit_price: item.preco,
+        price_per_unit_type: item.unidade,
+        currency: 'BRL',
+        mapping_confidence: masterListId ? 0.9 : 0.5,
+        mapping_method: 'user_input',
+        is_active: true,
+        created_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+    
+    if (mapError) {
+      console.error('❌ Error guardando producto:', mapError);
+      continue;
+    }
+    
+    // 4. Guardar en pricing_history
+    await $supabase
+      .from('pricing_history')
+      .insert({
+        supplier_id: supplierId,
+        master_list_id: masterListId,
+        supplier_mapped_product_id: mappedProduct.id,
+        unit_price: item.preco,
+        currency: 'BRL',
+        price_per_unit_type: item.unidade,
+        effective_date: new Date().toISOString(),
+        snapshot_date: new Date().toISOString(),
+        data_source: 'whatsapp_user',
+        verification_status: 'pending',
+        created_at: new Date().toISOString()
+      });
+    
+    results.push({
+      producto: item.produto,
+      fornecedor: item.fornecedor,
+      success: true
+    });
+    
+    console.log('✅ Precio guardado:', item.produto, item.fornecedor, item.preco);
+    
+  } catch (error) {
+    console.error('❌ Error procesando precio:', error);
+    results.push({
+      producto: item.produto,
+      error: error.message
+    });
+  }
+}
+
+console.log(`✅ [Procesar Precios] ${results.filter(r => r.success).length}/${results.length} precios guardados`);
+
+return [{
+  json: {
+    phone_number: $input.first().json.phone_number,
+    total_prices: pricesData.length,
+    saved_successfully: results.filter(r => r.success).length,
+    results: results,
+    output: `✅ ${results.filter(r => r.success).length} preços cadastrados com sucesso!`
+  }
+}];
+
+
+
+================================================================================
+NODO: Detectar Fornecedor Completo
+================================================================================
+
+// 🔍 Detectar si cadastro de fornecedor está completo
+const agentOutput = $input.first().json.output;
+const phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;
+
+console.log('🔍 [Detect Fornecedor] Analizando output');
+
+const isComplete = agentOutput.includes('FORNECEDOR_CADASTRADO');
+
+let dadosFornecedor = {
+  nome: null,
+  telefone: null,
+  dias: null,
+  produtos: []
+};
+
+if (isComplete) {
+  try {
+    const lines = agentOutput.split('\n');
+    for (const line of lines) {
+      if (line.includes('Nome:')) {
+        dadosFornecedor.nome = line.split(':')[1].trim();
+      }
+      if (line.includes('Telefone:')) {
+        dadosFornecedor.telefone = line.split(':')[1].trim();
+      }
+      if (line.includes('Dias:')) {
+        dadosFornecedor.dias = line.split(':')[1].trim();
+      }
+      if (line.includes('Produtos:')) {
+        const produtosStr = line.split(':')[1].trim();
+        dadosFornecedor.produtos = produtosStr.split(',').map(p => p.trim());
+      }
+    }
+    console.log('✅ [Detect Fornecedor] Datos extraídos:', dadosFornecedor);
+  } catch (error) {
+    console.error('❌ [Detect Fornecedor] Error parsing:', error);
+  }
+}
+
+const outputLimpio = agentOutput
+  .replace(/FORNECEDOR_CADASTRADO/g, '')
+  .replace(/Nome:.*\n/g, '')
+  .replace(/Telefone:.*\n/g, '')
+  .replace(/Dias:.*\n/g, '')
+  .replace(/Produtos:.*\n/g, '')
+  .trim();
+
+return [{
+  json: {
+    phone_number: phoneNumber,
+    cadastro_completo: isComplete,
+    dados_fornecedor: dadosFornecedor,
+    output: outputLimpio || agentOutput
+  }
+}];
+
+
+
+================================================================================
+NODO: Guardar Fornecedor BD
+================================================================================
+
+// 💾 Guardar fornecedor y productos en Supabase
+const datos = $input.first().json.dados_fornecedor;
+const phoneNumber = $input.first().json.phone_number;
+
+console.log('💾 [Guardar Fornecedor] Guardando:', datos.nome);
+
+try {
+  // 1. Guardar/Actualizar fornecedor
+  const { data: existingSupplier } = await $supabase
+    .from('suppliers')
+    .select('id')
+    .ilike('company_name', datos.nome)
+    .single();
+  
+  let supplierId;
+  
+  if (existingSupplier) {
+    // Actualizar
+    await $supabase
+      .from('suppliers')
+      .update({
+        whatsapp_number: datos.telefone,
+        delivery_days: { dias: datos.dias },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', existingSupplier.id);
+    
+    supplierId = existingSupplier.id;
+    console.log('✅ Fornecedor actualizado:', supplierId);
+  } else {
+    // Crear nuevo
+    const { data: newSupplier } = await $supabase
+      .from('suppliers')
+      .insert({
+        company_name: datos.nome,
+        whatsapp_number: datos.telefone,
+        delivery_days: { dias: datos.dias },
+        is_active: true,
+        created_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+    
+    supplierId = newSupplier.id;
+    console.log('✅ Novo fornecedor criado:', supplierId);
+  }
+  
+  // 2. Guardar productos del fornecedor
+  for (const producto of datos.produtos) {
+    // Buscar en master_list
+    const { data: masterProduct } = await $supabase
+      .from('master_list')
+      .select('id')
+      .ilike('product_name', `%${producto}%`)
+      .limit(1)
+      .single();
+    
+    const masterListId = masterProduct?.id || null;
+    
+    // Crear en supplier_mapped_products
+    await $supabase
+      .from('supplier_mapped_products')
+      .insert({
+        supplier_id: supplierId,
+        master_list_id: masterListId,
+        supplier_product_name: producto,
+        current_unit_price: 0,
+        currency: 'BRL',
+        mapping_confidence: masterListId ? 0.8 : 0.5,
+        mapping_method: 'user_input',
+        is_active: true,
+        created_at: new Date().toISOString()
+      });
+    
+    console.log(`✅ Produto vinculado: ${producto}`);
+  }
+  
+  return [{
+    json: {
+      output: `✅ Fornecedor *${datos.nome}* cadastrado com sucesso!\n\n${datos.produtos.length} produtos vinculados.`,
+      phone_number: phoneNumber,
+      supplier_id: supplierId
+    }
+  }];
+  
+} catch (error) {
+  console.error('❌ [Guardar Fornecedor] Error:', error);
+  return [{
+    json: {
+      output: `❌ Erro ao cadastrar fornecedor. Tente novamente.`,
+      phone_number: phoneNumber,
+      error: error.message
+    }
+  }];
+}
+
+
+
+================================================================================
+NODO: Detectar Opção Continuação
+================================================================================
+
+// ===== ERROR HANDLING & INPUT VALIDATION =====
+try {
+  // Validate input
+  const input = $input.first();
+  if (!input || !input.json) {
+    console.error('[Detectar Opção Continuação] Input vacío o inválido');
+    return [{
+      json: {
+        error: true,
+        error_message: 'Input inválido',
+        error_node: 'Detectar Opção Continuação',
+        phone_number: 'unknown'
+      }
+    }];
+  }
+
+  // Original code starts here
+  const mensaje = $input.first().json.message.toLowerCase();
+const usuario = $input.first().json;
+
+console.log(`🔍 [Continuação] Mensaje: "${mensaje}"`);
+
+// Opción 1: Fazer outra compra
+if (mensaje.includes('1') ||
+    mensaje.includes('compra') ||
+    mensaje.includes('pedido') ||
+    mensaje.includes('fazer compra') ||
+    mensaje.includes('outra compra')) {
+  console.log('✅ [Continuação] Detectado: FAZER_COMPRA');
+  return [{
+    json: {
+      ...usuario,
+      continuation_action: 'FAZER_COMPRA',
+      output_route: 0
+    }
+  }];
+}
+
+// Opción 2: Atualizar preços
+if (mensaje.includes('2') ||
+    mensaje.includes('preço') ||
+    mensaje.includes('atualizar') ||
+    mensaje.includes('cadastrar preço')) {
+  console.log('✅ [Continuação] Detectado: ATUALIZAR_PRECOS');
+  return [{
+    json: {
+      ...usuario,
+      continuation_action: 'ATUALIZAR_PRECOS',
+      output_route: 1
+    }
+  }];
+}
+
+// Opción 3: Registrar fornecedor
+if (mensaje.includes('3') ||
+    mensaje.includes('fornecedor') ||
+    mensaje.includes('registrar fornecedor')) {
+  console.log('✅ [Continuação] Detectado: REGISTRAR_FORNECEDOR');
+  return [{
+    json: {
+      ...usuario,
+      continuation_action: 'REGISTRAR_FORNECEDOR',
+      output_route: 2
+    }
+  }];
+}
+
+// Opción 4 o por defecto: Ver menú principal
+if (mensaje.includes('4') ||
+    mensaje.includes('menu') ||
+    mensaje.includes('voltar') ||
+    mensaje.includes('não') ||
+    mensaje.includes('nao')) {
+  console.log('✅ [Continuação] Detectado: MOSTRAR_MENU');
+  return [{
+    json: {
+      ...usuario,
+      continuation_action: 'MOSTRAR_MENU',
+      output_route: 3
+    }
+  }];
+}
+
+// Por defecto, volver al menú
+console.log('⚠️ [Continuação] Opción no reconocida, volviendo al menú');
+return [{
+  json: {
+    ...usuario,
+    continuation_action: 'MOSTRAR_MENU',
+    output_route: 3
+  }
+}];
+
+} catch (error) {
+  console.error(`[Detectar Opção Continuação] Error: ${error.message}`);
+  console.error(`[Detectar Opção Continuação] Stack: ${error.stack}`);
+
+
+  // 🔄 Resetear flag de continuación en la base de datos
+  await $supabase
+    .from('line_sessions')
+    .update({ awaiting_continuation: false })
+    .eq('user_id', usuario.user_id);
+
+  console.log('✅ [Detectar Continuação] Reset awaiting_continuation = false');
+
+  return [{
+    json: {
+      error: true,
+      error_message: error.message,
+      error_node: 'Detectar Opção Continuação',
+      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',
+      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite "menu" para voltar.'
+    }
+  }];
+}
+// ===== END ERROR HANDLING =====
+
