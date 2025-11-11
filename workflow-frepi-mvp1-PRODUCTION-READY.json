@@ -153,7 +153,7 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4.1-mini"
+          "value": "gpt-4o-mini"
         },
         "options": {
           "frequencyPenalty": 1.5,
@@ -740,7 +740,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 🔍 Vector Search Products - Enhanced\nconst userMessage = $input.first().json.message || $input.first().json.user_message;\nconst phoneNumber = $input.first().json.phone_number;\nconst sessionId = $input.first().json.session_id;\nconst restaurantId = $input.first().json.restaurant_id || $('Detectar Opción del Menú').first().json.user_data.restaurant_id;\n\nconsole.log('🔍 [Vector Search] Buscando productos para:', userMessage);\n\nlet queryEmbedding;\ntry {\n  const embeddingResponse = await $http.request({\n    method: 'POST',\n    url: 'https://api.openai.com/v1/embeddings',\n    headers: {\n      'Authorization': `Bearer ${$credentials.openAiApi.apiKey}`,\n      'Content-Type': 'application/json'\n    },\n    body: {\n      model: 'text-embedding-ada-002',\n      input: userMessage\n    }\n  });\n\n  if (embeddingResponse.statusCode !== 200) {\n    console.error('❌ [Vector Search] OpenAI Embedding error:', embeddingResponse);\n    return [{\n      json: {\n        user_message: userMessage,\n        phone_number: phoneNumber,\n        session_id: sessionId,\n        restaurant_id: restaurantId,\n        suggested_products: [],\n        products_context: '',\n        has_suggestions: false,\n        error: 'embedding_generation_failed',\n        ...($input.first().json)\n      }\n    }];\n  }\n\n  queryEmbedding = embeddingResponse.data[0].embedding;\n  console.log('✅ [Vector Search] Embedding generado exitosamente');\n  \n} catch (error) {\n  console.error('❌ [Vector Search] Error generando embedding:', error);\n  return [{\n    json: {\n      user_message: userMessage,\n      phone_number: phoneNumber,\n      session_id: sessionId,\n      restaurant_id: restaurantId,\n      suggested_products: [],\n      products_context: '',\n      has_suggestions: false,\n      error: 'embedding_error',\n      ...($input.first().json)\n    }\n  }];\n}\n\nlet matchingProducts = [];\ntry {\n  const { data, error } = await $supabase.rpc('match_products_v2', {\n    query_embedding: queryEmbedding,\n    match_threshold: 0.65,\n    match_count: 5\n  });\n\n  if (error) {\n    console.error('❌ [Vector Search] Supabase RPC error:', error.message);\n    matchingProducts = [];\n  } else {\n    matchingProducts = data || [];\n    console.log(`✅ [Vector Search] ${matchingProducts.length} productos encontrados`);\n  }\n  \n} catch (error) {\n  console.error('❌ [Vector Search] Error en búsqueda vectorial:', error);\n  matchingProducts = [];\n}\n\nlet productsContext = '';\n\nif (matchingProducts && matchingProducts.length > 0) {\n  productsContext = '🔍 PRODUTOS ENCONTRADOS NO CATÁLOGO:\\n\\n';\n  matchingProducts.forEach((p, idx) => {\n    productsContext += `${idx + 1}. ${p.product_name}`;\n    if (p.brand) productsContext += ` (${p.brand})`;\n    productsContext += '\\n';\n    productsContext += `   Relevância: ${(p.similarity * 100).toFixed(0)}%\\n`;\n    \n    if (p.alternative_names && Array.isArray(p.alternative_names) && p.alternative_names.length > 0) {\n      productsContext += `   Também chamado: ${p.alternative_names.join(', ')}\\n`;\n    }\n    productsContext += '\\n';\n  });\n  productsContext += '💡 Use estes produtos como referência.\\n';\n}\n\nreturn [{\n  json: {\n    user_message: userMessage,\n    phone_number: phoneNumber,\n    session_id: sessionId,\n    restaurant_id: restaurantId,\n    suggested_products: matchingProducts || [],\n    products_context: productsContext,\n    has_suggestions: matchingProducts && matchingProducts.length > 0,\n    embedding_used: true,\n    ...($input.first().json)\n  }\n}];"
+        "jsCode": "// 🔍 Vector Search Products - Enhanced\nconst userMessage = $input.first().json.message || $input.first().json.user_message;\nconst phoneNumber = $input.first().json.phone_number;\nconst sessionId = $input.first().json.session_id;\nconst restaurantId = $input.first().json.restaurant_id || $('Detectar Acción del Agente').first().json.user_data.restaurant_id;\n\nconsole.log('🔍 [Vector Search] Buscando productos para:', userMessage);\n\nlet queryEmbedding;\ntry {\n  const embeddingResponse = await $http.request({\n    method: 'POST',\n    url: 'https://api.openai.com/v1/embeddings',\n    headers: {\n      'Authorization': `Bearer ${$credentials.openAiApi.apiKey}`,\n      'Content-Type': 'application/json'\n    },\n    body: {\n      model: 'text-embedding-ada-002',\n      input: userMessage\n    }\n  });\n\n  if (embeddingResponse.statusCode !== 200) {\n    console.error('❌ [Vector Search] OpenAI Embedding error:', embeddingResponse);\n    return [{\n      json: {\n        user_message: userMessage,\n        phone_number: phoneNumber,\n        session_id: sessionId,\n        restaurant_id: restaurantId,\n        suggested_products: [],\n        products_context: '',\n        has_suggestions: false,\n        error: 'embedding_generation_failed',\n        ...($input.first().json)\n      }\n    }];\n  }\n\n  queryEmbedding = embeddingResponse.data[0].embedding;\n  console.log('✅ [Vector Search] Embedding generado exitosamente');\n  \n} catch (error) {\n  console.error('❌ [Vector Search] Error generando embedding:', error);\n  return [{\n    json: {\n      user_message: userMessage,\n      phone_number: phoneNumber,\n      session_id: sessionId,\n      restaurant_id: restaurantId,\n      suggested_products: [],\n      products_context: '',\n      has_suggestions: false,\n      error: 'embedding_error',\n      ...($input.first().json)\n    }\n  }];\n}\n\nlet matchingProducts = [];\ntry {\n  const { data, error } = await $supabase.rpc('match_products_v2', {\n    query_embedding: queryEmbedding,\n    match_threshold: 0.65,\n    match_count: 5\n  });\n\n  if (error) {\n    console.error('❌ [Vector Search] Supabase RPC error:', error.message);\n    matchingProducts = [];\n  } else {\n    matchingProducts = data || [];\n    console.log(`✅ [Vector Search] ${matchingProducts.length} productos encontrados`);\n  }\n  \n} catch (error) {\n  console.error('❌ [Vector Search] Error en búsqueda vectorial:', error);\n  matchingProducts = [];\n}\n\nlet productsContext = '';\n\nif (matchingProducts && matchingProducts.length > 0) {\n  productsContext = '🔍 PRODUTOS ENCONTRADOS NO CATÁLOGO:\\n\\n';\n  matchingProducts.forEach((p, idx) => {\n    productsContext += `${idx + 1}. ${p.product_name}`;\n    if (p.brand) productsContext += ` (${p.brand})`;\n    productsContext += '\\n';\n    productsContext += `   Relevância: ${(p.similarity * 100).toFixed(0)}%\\n`;\n    \n    if (p.alternative_names && Array.isArray(p.alternative_names) && p.alternative_names.length > 0) {\n      productsContext += `   Também chamado: ${p.alternative_names.join(', ')}\\n`;\n    }\n    productsContext += '\\n';\n  });\n  productsContext += '💡 Use estes produtos como referência.\\n';\n}\n\nreturn [{\n  json: {\n    user_message: userMessage,\n    phone_number: phoneNumber,\n    session_id: sessionId,\n    restaurant_id: restaurantId,\n    suggested_products: matchingProducts || [],\n    products_context: productsContext,\n    has_suggestions: matchingProducts && matchingProducts.length > 0,\n    embedding_used: true,\n    ...($input.first().json)\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -786,7 +786,7 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4.1-mini"
+          "value": "gpt-4o-mini"
         },
         "options": {
           "timeout": 30000,
@@ -993,7 +993,7 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4.1-mini"
+          "value": "gpt-4o-mini"
         },
         "options": {
           "timeout": 30000,
@@ -1079,7 +1079,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Preparar Datos Subir Precios] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Preparar Datos Subir Precios',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('📋 [Subir Precios] Iniciando flujo de subir precios');\n\nconst menuData = $('Detectar Opción del Menú').first().json;\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    user_data: menuData.user_data,\n    restaurant_id: menuData.user_data.restaurant_id,\n    person_id: menuData.user_data.id,\n    message: $('Extraer Datos WhatsApp').first().json.message\n  }\n}];\n\n} catch (error) {\n  console.error(`[Preparar Datos Subir Precios] Error: ${error.message}`);\n  console.error(`[Preparar Datos Subir Precios] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Preparar Datos Subir Precios',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Preparar Datos Subir Precios] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Preparar Datos Subir Precios',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('📋 [Subir Precios] Iniciando flujo de subir precios');\n\nconst menuData = $('Detectar Acción del Agente').first().json;\n\nreturn [{\n  json: {\n    phone_number: phoneNumber,\n    user_data: menuData.user_data,\n    restaurant_id: menuData.user_data.restaurant_id,\n    person_id: menuData.user_data.id,\n    message: $('Extraer Datos WhatsApp').first().json.message\n  }\n}];\n\n} catch (error) {\n  console.error(`[Preparar Datos Subir Precios] Error: ${error.message}`);\n  console.error(`[Preparar Datos Subir Precios] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Preparar Datos Subir Precios',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1132,7 +1132,7 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4.1-mini"
+          "value": "gpt-4o-mini"
         },
         "options": {
           "timeout": 30000,
@@ -1211,7 +1211,7 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4.1-mini"
+          "value": "gpt-4o-mini"
         },
         "options": {
           "timeout": 30000,
@@ -1444,7 +1444,7 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4.1-mini"
+          "value": "gpt-4o-mini"
         },
         "options": {
           "timeout": 30000,
@@ -1850,7 +1850,7 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4.1-mini"
+          "value": "gpt-4o-mini"
         },
         "options": {
           "timeout": 30000,
@@ -1916,7 +1916,7 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4.1-mini"
+          "value": "gpt-4o-mini"
         },
         "options": {
           "timeout": 30000,
@@ -2067,7 +2067,6 @@
       ],
       "parameters": {
         "mode": "expression",
-        "output": "={{ $json.output_route }}",
         "options": {
           "outputsAmount": 5
         },
@@ -2102,7 +2101,6 @@
         "operation": "update",
         "tableId": "line_sessions",
         "filterType": "manual",
-        "filterBy": "={{ $json._session_update ? $json._session_update.session_id : null }}",
         "fieldsUi": {
           "fieldValues": [
             {
@@ -2120,6 +2118,15 @@
             {
               "fieldId": "awaiting_continuation",
               "fieldValue": "={{ $json.awaiting_continuation || false }}"
+            }
+          ]
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $json._session_update.session_id }}"
             }
           ]
         }
@@ -2271,50 +2278,6 @@
       "position": [
         2500,
         2928
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "clarification_check",
-              "leftValue": "={{ $json.requires_clarification }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        }
-      },
-      "id": "clarification_if_node_id",
-      "name": "¿Requiere Aclaración?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        2600,
-        460
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Generar mensaje pidiendo aclaración sobre productos ambiguos\nconst ambiguousProducts = $input.first().json.ambiguous_products;\nconst phoneNumber = $input.first().json.phone_number;\n\nlogger.info(`🤔 Generando mensaje de aclaración para ${ambiguousProducts.length} productos`);\n\nlet message = \"🤔 *Encontré varios productos similares*\\n\\n\";\nmessage += \"Por favor, aclárame cuál de estos quieres:\\n\\n\";\n\nambiguousProducts.forEach((product, index) => {\n  message += `*${product.original_request}* (${product.quantidade} ${product.unidade}):\\n`;\n\n  product.possible_matches.forEach((match, matchIndex) => {\n    message += `   ${matchIndex + 1}. ${match.name}\\n`;\n  });\n\n  message += \"\\n\";\n});\n\nmessage += \"💡 _Responde con el número de la opción que quieres_\";\n\nreturn [{\n  phone_number: phoneNumber,\n  message: message,\n  awaiting_clarification: true,\n  clarification_data: ambiguousProducts\n}];"
-      },
-      "id": "clarification_message_node_id",
-      "name": "Generar Mensaje Aclaración",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2800,
-        360
       ]
     },
     {
